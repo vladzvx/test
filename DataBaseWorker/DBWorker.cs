@@ -182,6 +182,7 @@ namespace DataBaseWorker
         NpgsqlCommand _set_group;
         NpgsqlCommand _get_active_private_chats;
         NpgsqlCommand _get_groups;
+        NpgsqlCommand _get_bots;
         #endregion
 
         #region constructor and destructor
@@ -284,6 +285,9 @@ namespace DataBaseWorker
             this._get_groups.CommandText = "select distinct user_group from public.chats " +
                 "where is_group=false and is_channel=false and is_active=true and  bot_id = {0}; ";
 
+            this._get_bots = ReadConnention.CreateCommand();
+            this._get_bots.CommandType = System.Data.CommandType.Text;
+            this._get_bots.CommandText = "select tg_bot_token from public.bots;";
 
             this._get_caption = ReadConnention.CreateCommand();
             this._get_caption.CommandType = System.Data.CommandType.Text;
@@ -361,6 +365,27 @@ namespace DataBaseWorker
                         }
                         catch (InvalidCastException) { }
 
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public List<string> get_all_bots()
+        {
+            List<string> result = new List<string>();
+            lock (ReadLocker)
+            {
+                using (NpgsqlDataReader reader = _get_bots.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result.Add(reader.GetString(0));
+                        }
+                        catch (System.InvalidCastException) { }
                     }
                     reader.Close();
                 }
