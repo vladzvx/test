@@ -13,7 +13,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace FeedbackBot
 {
-    class FeedBackBot : BaseBot
+    public class FeedBackBot : BaseBot
     {
         private enum commands
         {
@@ -93,7 +93,7 @@ namespace FeedbackBot
 
             ParseHelpCommand(message, ref continuation);
             Message inReplyOf = message.ReplyToMessage;
-            if (message.Text.ToLower() == "/ban")
+            if (message.Text.ToLower().Equals("/ban"))
             {
                 if (inReplyOf != null)
                 {
@@ -164,12 +164,16 @@ namespace FeedbackBot
                     List<long> groups = dBWorker.get_active_private_chats(token);
                     foreach (long g in groups)
                     {
-                        sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities,rep.Text)));
+                        if (!dBWorker.check_user_ban((int)g, g, token))
+                            sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities,rep.Text)));
                     }
                 }
                 else
                 {
-                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Некорректная комманда, см. /help", message.MessageId));
+                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
+                        " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
+                        "в группу ПОСЛЕ назначения бота администратором группы." +
+                        "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
                 }
                 continuation = false;
             }
@@ -184,12 +188,16 @@ namespace FeedbackBot
                     List<long> groups = dBWorker.get_active_private_chats(token, match.Groups[1].Value);
                     foreach (long g in groups)
                     {
-                        sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities, rep.Text)));
+                        if (!dBWorker.check_user_ban((int)g, g,token))
+                            sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities, rep.Text)));
                     }
                 }
                 else
                 {
-                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Некорректная комманда, см. /help", message.MessageId));
+                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
+                        " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
+                        "в группу ПОСЛЕ назначения бота администратором группы." +
+                        "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
                 }
                 continuation = false;
             }
