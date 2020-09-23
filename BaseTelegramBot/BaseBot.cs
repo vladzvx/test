@@ -45,7 +45,8 @@ namespace BaseTelegramBot
 		protected WrapperFactory factory;
 		protected Sender sender_to_tg;
 		protected DBWorker dBWorker;
-		protected string token = string.Empty;
+		public string token = string.Empty;
+		public string DBConnectionString = string.Empty;
 		public List<string> StopCommands = new List<string>() { "/stop", "/ban", "/block" };
 		public List<string> StartCommands = new List<string>() { "/start" };
 		public List<string> HelpCommands = new List<string>() { "/help", "/h" };
@@ -75,13 +76,24 @@ namespace BaseTelegramBot
 		#region конструкторы
 		public BaseBot(string token,string DBConnectionString)
 		{
-			this.token = token;
-			botClient = new TelegramBotClient(token);
-			
-			sender_to_tg = new Sender();
-			dBWorker = new DBWorker(DBConnectionString);
-			factory = new WrapperFactory(botClient,dBWorker,token);
-			EventsInit();
+            try
+            {
+				logger.Info("Creating new bot");
+				this.token = token;
+				this.DBConnectionString = DBConnectionString;
+				botClient = new TelegramBotClient(token);
+
+				sender_to_tg = new Sender();
+				dBWorker = new DBWorker(DBConnectionString);
+				factory = new WrapperFactory(botClient, dBWorker, token);
+				EventsInit();
+			}
+            catch (Exception ex)
+            {
+				logger.Error(ex);
+				throw ex;
+            }
+
 		}
 
 		private void EventsInit()
@@ -97,17 +109,26 @@ namespace BaseTelegramBot
 		protected override async Task ExecuteAsync(CancellationToken stoppingToken)
 		{
 			this.Start();
+			await Task.Delay(100);
 		}
-		public void Start()
+		public virtual void Start()
 		{
+            try
+            {
+				sender_to_tg.Start();
+				dBWorker.Connect();
+				Task<User> meWaiting = botClient.GetMeAsync();
+				meWaiting.Wait();
+				me = meWaiting.Result;
+				dBWorker.add_user(DateTime.UtcNow, botClient.BotId, token, me.Username);
+				botClient.StartReceiving();
+			}
+			catch (Exception ex)
+            {
+				logger.Error(ex);
+            }
+
 			
-			sender_to_tg.Start();
-			dBWorker.Connect();
-			Task<User> meWaiting = botClient.GetMeAsync();
-			meWaiting.Wait();
-			me = meWaiting.Result;
-			dBWorker.add_user(DateTime.UtcNow, botClient.BotId, token,me.Username);
-			botClient.StartReceiving();
 		}
 
 		public void Stop()
@@ -221,16 +242,13 @@ namespace BaseTelegramBot
 			bool result = true;
 			if (message != null)
             {
-				if (message.Text==null|| CheckCommand(message.Text))
+				if (message.Chat.Type == ChatType.Private)
+				{
+					PrivateChatProcessing(message, ref result);
+				}
+				else if (message.Chat.Type==ChatType.Group|| message.Chat.Type == ChatType.Supergroup)
                 {
-					if (message.Chat.Type == ChatType.Private)
-					{
-						PrivateChatProcessing(message, ref result);
-					}
-					else if (message.Chat.Type==ChatType.Group|| message.Chat.Type == ChatType.Supergroup)
-                    {
-						GroupChatProcessing(message, ref result);
-					}
+					GroupChatProcessing(message, ref result);
 				}
 				return result;
 			}
@@ -269,7 +287,7 @@ namespace BaseTelegramBot
 		}
 		public void ParseHelpCommand(Message message, ref bool continuation)
         {
-			if (HelpCommands.Contains(message.Text))
+			if (message.Text!=null&&HelpCommands.Contains(message.Text))
 			{
 				string replyText = "";
 				foreach (BotCommand command in SupportedCommands)
