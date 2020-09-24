@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Args;
 
-namespace FeedbackBot
+namespace BotManager
 {
     public class BotService : BackgroundService
     {

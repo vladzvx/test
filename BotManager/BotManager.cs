@@ -12,7 +12,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using static BaseTelegramBot.BaseBot;
 
-namespace FeedbackBot
+namespace BotManager
 {
     class BotManager : BaseBot
     {
@@ -26,7 +26,6 @@ namespace FeedbackBot
         }
         public BotManager(string token="", string DBConnectionString="") : base(token, DBConnectionString)
         {
-            
             PrivateChatGreeting = "Добрый день! Напишите боту сообщение и мы его прочтем.";
             SupportedCommands = new List<BotCommand>()
             {
@@ -61,7 +60,7 @@ namespace FeedbackBot
             dBWorker.get_bot_id(token);
             if (this.bots.FindIndex(bot => bot.token == token)<0)
             {
-                BaseBot bot = new FeedBackBot(token, this.DBConnectionString);
+                BaseBot bot = new FeedbackBot.FeedBackBot(token, this.DBConnectionString);
                 bot.Start();
                 this.bots.Add(bot);
             }
