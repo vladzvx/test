@@ -20,10 +20,9 @@ namespace BotManager
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    //string BotToken = hostContext.Configuration.GetSection("BotSettings:TelegramBotToken").Value;
-                   // string ConnectionString = hostContext.Configuration.GetSection("BotSettings:DBConnectionString").Value;
-                    //services.AddHostedService(sh=>new BotManager(BotToken,ConnectionString));
-                    services.AddHostedService<BotService>();
+                    string BotToken = hostContext.Configuration.GetSection("BotSettings:TelegramBotToken").Value;
+                    string ConnectionString = hostContext.Configuration.GetSection("BotSettings:DBConnectionString").Value;
+                    services.AddHostedService(sh=>new BotService(BotToken,ConnectionString));
 
                 });
     }
