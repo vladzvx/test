@@ -165,6 +165,7 @@ namespace BotManager
                 {
                     AddBot(TokenChecking.Groups[1].Value,mode);
                     ClearUnderChatMenu(message.Chat.Id, "Бот успешно создан!");
+                    SendDefaultMenu(message.Chat.Id);
                 }
                 else
                 {
