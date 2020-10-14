@@ -151,14 +151,15 @@ namespace BotManager
         public override void PrivateChatProcessing(Message message, ref bool continuation)
         {
             base.PrivateChatProcessing(message, ref continuation);
+            long chatId = message.Chat.Id;
             if (message.Text != null && message.Text.ToLower().Equals(CancelCommand.ToLower()))
             {
-                long chatId = message.Chat.Id;
                 ClearUnderChatMenu(chatId, "Принято!");
                 SendDefaultMenu(chatId);
                 mods.TryRemove(chatId, out Mode m);
+                return;
             }
-            if (mods.TryGetValue(message.Chat.Id,out Mode mode))
+            if (mods.TryGetValue(chatId, out Mode mode))
             {
                 Match TokenChecking = TokenParsing.Match(message.Text);
                 if (TokenChecking.Success)
@@ -166,12 +167,15 @@ namespace BotManager
                     AddBot(TokenChecking.Groups[1].Value,mode);
                     ClearUnderChatMenu(message.Chat.Id, "Бот успешно создан!");
                     SendDefaultMenu(message.Chat.Id);
+                    return;
                 }
                 else
                 {
                     sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Пришлите пожалуйста корректный токен в формате\n\n 1234567:AAAAAAAdsdd"));
+                    return;
                 }
             }
+            SendDefaultMenu(chatId);
         }
 
         public override bool? ParseStartStopCommands(Message message, ref bool continuation)
