@@ -39,7 +39,7 @@ namespace BaseTelegramBot
         }
 
 
-
+		protected const string CancelCommand = "Отмена";
 		protected object locker = new object();
 		protected NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
 		protected TelegramBotClient botClient;
@@ -217,11 +217,20 @@ namespace BaseTelegramBot
 				logger.Error(ex);
 			}
 		}
-		public async virtual void BotOnUpdateRecieved(object sender, UpdateEventArgs updateEventArgs)
+		public virtual void BotOnUpdateRecieved(object sender, UpdateEventArgs updateEventArgs)
 		{
 			try
 			{
 				logger.Trace("Update!");
+				switch (updateEventArgs.Update.Type)
+				{
+					case UpdateType.CallbackQuery:
+						{
+							long chatId = updateEventArgs.Update.CallbackQuery.Message.Chat.Id;
+							logger.Trace("chatId is "+ chatId.ToString());
+							break;
+						}
+				}
 			}
 			catch (Exception ex)
 			{
@@ -315,6 +324,27 @@ namespace BaseTelegramBot
 			t2 = t2 == null ? string.Empty : t2;
 			return t1.Length > t2.Length ? t1 : t2;
         }
+
+		public void CreateUnderChatMenu(long chatid, string text)
+		{
+			var rmu = new ReplyKeyboardMarkup();
+			rmu.Keyboard = new List<List<KeyboardButton>>() { new List<KeyboardButton>() { new KeyboardButton(CancelCommand) } };
+			rmu.ResizeKeyboard = true;
+			sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmu));
+		}
+
+		public void ClearUnderChatMenu(long chatid, string text)
+		{
+			var rmr = new ReplyKeyboardRemove();
+			sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmr));
+		}
+					
+		public virtual List<List<string>> MainMenuDescription => new List<List<string>>();
+		public void SendDefaultMenu(long chatId)
+		{
+			sender_to_tg.Put(factory.CreateMessage(chatId,
+				PrivateChatGreeting, keyboardMarkup: CommonFunctions.CreateInlineKeyboard(this.MainMenuDescription)));
+		}
 
 		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "")
 		{

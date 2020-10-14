@@ -210,6 +210,7 @@ namespace DataBaseWorker
         NpgsqlCommand _get_bots;
         NpgsqlCommand _get_last_user_messageid_in_chat;
         NpgsqlCommand _add_task;
+        NpgsqlCommand _add_bot;
         NpgsqlCommand _update_task_time;
         NpgsqlCommand _task_comlited;
         NpgsqlCommand _reject_task;
@@ -235,6 +236,12 @@ namespace DataBaseWorker
             this._get_bot_id.CommandType = System.Data.CommandType.StoredProcedure;
             this._get_bot_id.CommandText = "get_bot_id";
             this._get_bot_id.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._add_bot = ReadConnention.CreateCommand();
+            this._add_bot.CommandType = System.Data.CommandType.StoredProcedure;
+            this._add_bot.CommandText = "add_bot";
+            this._add_bot.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+            this._add_bot.Parameters.Add(new NpgsqlParameter("bot_type", NpgsqlTypes.NpgsqlDbType.Text));
 
             this._get_reaction_id = ReadConnention.CreateCommand();
             this._get_reaction_id.CommandType = System.Data.CommandType.StoredProcedure;
@@ -400,7 +407,7 @@ namespace DataBaseWorker
 
             this._get_bots = ReadConnention.CreateCommand();
             this._get_bots.CommandType = System.Data.CommandType.Text;
-            this._get_bots.CommandText = "select tg_bot_token from public.bots;";
+            this._get_bots.CommandText = "select tg_bot_token, type from public.bots;";
 
             this._get_caption = ReadConnention.CreateCommand();
             this._get_caption.CommandType = System.Data.CommandType.Text;
@@ -544,9 +551,9 @@ namespace DataBaseWorker
             }
             return result;
         }
-        public List<string> get_all_bots()
+        public List<Tuple<string, string>> get_all_bots()
         {
-            List<string> result = new List<string>();
+            List<Tuple<string, string>> result =new  List<Tuple<string, string>>();
             lock (ReadLocker)
             {
                 using (NpgsqlDataReader reader = _get_bots.ExecuteReader())
@@ -555,7 +562,7 @@ namespace DataBaseWorker
                     {
                         try
                         {
-                            result.Add(reader.GetString(0));
+                            result.Add(Tuple.Create(reader.GetString(0), !reader.IsDBNull(1)?reader.GetString(1):null));
                         }
                         catch (System.InvalidCastException) { }
                     }
@@ -702,6 +709,16 @@ namespace DataBaseWorker
             logger.Trace(string.Format("add_user called! id: {0}, user_name: {1}, first_name: {2}, last_name: {3}",
                 id, user_name ?? "null", first_name ?? "null", last_name ?? "null"));
             AddContainer(new DataContainer(ClientTimestamp, id, bot_token, user_name, first_name, last_name));
+        }
+
+        public void add_bot(string bot_token, string type)
+        {
+            lock (ReadLocker)
+            {
+                _add_bot.Parameters["bot_token"].Value = bot_token;
+                _add_bot.Parameters["bot_type"].Value = type;
+                _add_bot.ExecuteNonQuery();
+            }
         }
 
         public void add_chat(DateTime ClientTimestamp, long chat_id, string bot_token, long? user_id = null, string title = null,

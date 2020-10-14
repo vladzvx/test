@@ -11,6 +11,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\BaseTelegramBot\BaseTelegramBot.csproj" />
+    <ProjectReference Include="..\DeferredPostingBot\DeferredPostingBot.csproj" />
     <ProjectReference Include="..\FeedbackBot\FeedbackBot.csproj" />
   </ItemGroup>
 

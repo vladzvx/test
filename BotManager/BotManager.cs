@@ -1,6 +1,8 @@
 ﻿using BaseTelegramBot;
+using DefferedPosting;
 using Microsoft.Extensions.Hosting;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -16,7 +18,25 @@ namespace BotManager
 {
     class BotManager : BaseBot
     {
+        private Regex TokenParsing = new Regex(@"(\d+:.+)");
         private List<BaseBot> bots = new List<BaseBot>();
+        private const string DefferedPosting = "Отложенный постинг";
+        private const string FeedBack = "Обратная связь";
+        private ConcurrentDictionary<long, Mode> mods = new ConcurrentDictionary<long, Mode>();
+
+        public override List<List<string>> MainMenuDescription => new List<List<string>>()
+        {
+            new List<string>() {DefferedPosting},
+            new List<string>() {FeedBack}
+
+        };
+
+        private enum Mode
+        {
+            Deffered,
+            FeedBack
+        }
+
         private enum commands
         {
             ban,
@@ -26,7 +46,8 @@ namespace BotManager
         }
         public BotManager(string token="", string DBConnectionString="") : base(token, DBConnectionString)
         {
-            PrivateChatGreeting = "Добрый день! Напишите боту сообщение и мы его прочтем.";
+            PrivateChatGreeting = "Добрый день! Это бот-менеджер ботов. Здесь вы можете создать себе копию одного из доступных ботов и безвозмездно пользоваться ей." +
+                "\n\n Выберете тип бота:";
             SupportedCommands = new List<BotCommand>()
             {
                 new BotCommand(@"/addbot","^/addbot (.+)$","Введите команду /addbot чтобы добавить бота"),
@@ -40,12 +61,15 @@ namespace BotManager
         
         private void RestoreBotsFromDB()
         {
-            foreach (string token in dBWorker.get_all_bots())
+            foreach (var bot_info in dBWorker.get_all_bots())
             {
                 try
                 {
-                    if (!token.Equals(this.token))
-                        AddBot(token);
+                    if (Enum.TryParse(bot_info.Item2,out Mode mode))
+                    {
+                        if (!bot_info.Item1.Equals(this.token))
+                            AddBot(bot_info.Item1, mode);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -55,52 +79,70 @@ namespace BotManager
             
         }
 
-        private void AddBot(string token)
+        private void AddBot(string token, Mode mode)
         {
             dBWorker.get_bot_id(token);
             if (this.bots.FindIndex(bot => bot.token == token)<0)
             {
-                BaseBot bot = new FeedbackBot.FeedBackBot(token, this.DBConnectionString);
-                bot.Start();
-                this.bots.Add(bot);
-            }
-        }
-
-        public override void OnMessageReceivedAction(Task<bool> task, object? state)
-        {
-            if (task.Result)
-            {
-                Message message = state as Message;
-                if (ChatIsGroup(message))
+                BaseBot bot=null;
+                switch (mode)
                 {
-                    Message inReplyOf = message.ReplyToMessage;
-
-                    if (inReplyOf != null)
-                    {
-                        long? targer = dBWorker.get_pair_chat_id(inReplyOf.Chat.Id, inReplyOf.MessageId, token);
-                        if (targer != null)
+                    case Mode.FeedBack:
                         {
-                            IMessageToSend MyMess = RecreateMessage(message, (long)targer);
-                            sender_to_tg.Put(MyMess);
+                            bot = new FeedbackBot.FeedBackBot(token, this.DBConnectionString);
+                            dBWorker.add_bot(token, Mode.FeedBack.ToString());
+                            break;
                         }
-                            
-                    }                    
+                    case Mode.Deffered:
+                        {
+                            bot = new DefferedPostingBot(token, this.DBConnectionString);
+                            dBWorker.add_bot(token, Mode.Deffered.ToString());
+                            break;
+                        }
                 }
-                else if (ChatIsPrivate(message))
+                if (bot != null)
                 {
-                    List<long> groups = dBWorker.get_active_groups();
-                    string appendix = "\n\n#id{0}\n<a href =\"tg://user?id={0}\">{1}</a>";
-                    foreach (long group_id in groups)
-                    {
-                        IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName));
-                        if (MyMess!=null)
-                            MyMess.AddLinkedMessage(message);
-                        sender_to_tg.Put(MyMess);
-                    }
-                       
+                    bot.Start();
+                    this.bots.Add(bot);
                 }
             }
         }
+
+        public override void BotOnUpdateRecieved(object sender, UpdateEventArgs updateEventArgs)
+        {
+            try
+            {
+                logger.Trace("Update!");
+                switch (updateEventArgs.Update.Type)
+                {
+                    case UpdateType.CallbackQuery:
+                        {
+                            long chatId = updateEventArgs.Update.CallbackQuery.Message.Chat.Id;
+                            switch (updateEventArgs.Update.CallbackQuery.Data)
+                            {
+                                case DefferedPosting:
+                                    {
+                                        mods.AddOrUpdate(chatId, Mode.Deffered, (oldKey, oldValue) => Mode.Deffered);
+                                        break;
+                                    }
+                                case FeedBack:
+                                    {
+                                        mods.AddOrUpdate(chatId, Mode.Deffered, (oldKey, oldValue) => Mode.Deffered);
+                                        break;
+                                    }
+                            }
+                            CreateUnderChatMenu(chatId, "Для создания бота скопируйте и пришлите токен, выдаваемый @BotFather при создании нового бота. " +
+                                "В течении минуты после получения токена, бот запущен и готов к использованию.");
+                            break;
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+            }
+        }
+
         public override void GroupChatProcessing(Message message, ref bool continuation)
         { 
         
@@ -109,11 +151,48 @@ namespace BotManager
         public override void PrivateChatProcessing(Message message, ref bool continuation)
         {
             base.PrivateChatProcessing(message, ref continuation);
-            Match TokenChecking = SupportedCommands.First().CommandReg.Match(message.Text);
-            if (TokenChecking.Success)
+            if (message.Text != null && message.Text.ToLower().Equals(CancelCommand.ToLower()))
             {
-                AddBot(TokenChecking.Groups[1].Value);
+                long chatId = message.Chat.Id;
+                ClearUnderChatMenu(chatId, "Принято!");
+                SendDefaultMenu(chatId);
+                mods.TryRemove(chatId, out Mode m);
             }
+            if (mods.TryGetValue(message.Chat.Id,out Mode mode))
+            {
+                Match TokenChecking = TokenParsing.Match(message.Text);
+                if (TokenChecking.Success)
+                {
+                    AddBot(TokenChecking.Groups[1].Value,mode);
+                    ClearUnderChatMenu(message.Chat.Id, "Бот успешно создан!");
+                }
+                else
+                {
+                    sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Пришлите пожалуйста корректный токен в формате\n\n 1234567:AAAAAAAdsdd"));
+                }
+            }
+        }
+
+        public override bool? ParseStartStopCommands(Message message, ref bool continuation)
+        {
+            bool? is_alive = null;
+            if (message.Text != null)
+            {
+                string text = message.Text.ToLower();
+                if (StartCommands.Contains(text))
+                {
+                    is_alive = true;
+                    continuation = false;
+                    if (PrivateChatGreeting != null && !PrivateChatGreeting.Equals(string.Empty))
+                        SendDefaultMenu(message.Chat.Id);
+                }
+                else if (StopCommands.Contains(text))
+                {
+                    is_alive = false;
+                    continuation = false;
+                }
+            }
+            return is_alive;
         }
     }
 }

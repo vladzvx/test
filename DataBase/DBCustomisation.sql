@@ -165,6 +165,14 @@ $$
     end;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION add_bot(bot_token text,bot_type text) RETURNS void as
+$$
+    declare temp_bot_id int;
+    begin
+        temp_bot_id = get_bot_id(bot_token);
+        update public.bots set type=bot_type where tg_bot_token = bot_token;
+    end;
+$$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION get_counted_reactions(id int) RETURNS TABLE (_task_id_ int,
                                                                             _reaction_id_ int,

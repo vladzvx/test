@@ -252,3 +252,12 @@ $$
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER add_message_to_tasks after INSERT on public.messages FOR EACH ROW execute PROCEDURE add_message_to_task();
+
+CREATE OR REPLACE FUNCTION add_bot(bot_token text,bot_type text) RETURNS void as
+$$
+    declare temp_bot_id int;
+    begin
+        temp_bot_id = get_bot_id(bot_token);
+        update public.bots set type=bot_type where tg_bot_token = bot_token;
+    end;
+$$ LANGUAGE plpgsql;

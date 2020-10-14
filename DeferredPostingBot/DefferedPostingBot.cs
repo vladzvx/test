@@ -18,7 +18,7 @@ using static BaseTelegramBot.BaseBot;
 
 namespace DefferedPosting
 {
-    class DefferedPostingBot : BaseBot
+    public class DefferedPostingBot : BaseBot
     {
         private System.Timers.Timer timer = new System.Timers.Timer(5000) { AutoReset = true};
         
@@ -33,7 +33,6 @@ namespace DefferedPosting
         private const string DefferedPostsCommand = "Отмена отложенных";
         private const string EditPostsCommand = "Редактировать";
         private const string AddChannelCommand = "Добавить канал";
-        private const string CancelCommand = "Отмена";
         private Regex ReactionReg = new Regex("^like_(.+)$");
         private Regex TaskReg = new Regex("^task_(.+)$");
         private ConcurrentDictionary<long, Mode> WorkModes = new ConcurrentDictionary<long, Mode>();
@@ -48,7 +47,7 @@ namespace DefferedPosting
             ChannelAdding
         }
 
-        private List<List<string>> MainMenuDescription => new List<List<string>>()
+        public override List<List<string>> MainMenuDescription => new List<List<string>>()
         {
             new List<string>() {CreatePostCommand},
             new List<string>() {CreateRePostCommand},
@@ -68,7 +67,6 @@ namespace DefferedPosting
         public DefferedPostingBot(string token = "", string DBConnectionString = "") : base(token, DBConnectionString)
         {
             this.PrivateChatGreeting = "Здесь вы можете создавать и откладывать посты, опросы и репосты";
-            this.botClient.OnUpdate += OnUpdateAction;
             timer.Elapsed += OnTimerAction;
             timer.Start();
         }
@@ -169,7 +167,7 @@ namespace DefferedPosting
             }
         }
 
-        private void OnUpdateAction(object sender, UpdateEventArgs updateEventArgs)
+        public override void BotOnUpdateRecieved(object sender, UpdateEventArgs updateEventArgs)
         {
             switch (updateEventArgs.Update.Type)
             {
@@ -340,13 +338,7 @@ namespace DefferedPosting
             WorkModes.AddOrUpdate(chatId, mode, (oldkey, oldvalue) => mode);
         }
 
-        private void CreateUnderChatMenu(long chatid, string text)
-        {
-            var rmu = new ReplyKeyboardMarkup();
-            rmu.Keyboard = new List<List<KeyboardButton>>() { new List<KeyboardButton>() { new KeyboardButton(CancelCommand) } };
-            rmu.ResizeKeyboard = true;
-            sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmu));
-        }
+
 
         private void CreateUnderChatReactionsMenu(long chatid, string text)
         {
@@ -356,17 +348,6 @@ namespace DefferedPosting
             sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmu));
         }
 
-        private void ClearUnderChatMenu(long chatid, string text)
-        {
-            var rmr = new ReplyKeyboardRemove();
-            sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmr));
-        }
-
-        private void SendDefaultMenu(long chatId)
-        {
-            sender_to_tg.Put(factory.CreateMessage(chatId,
-                PrivateChatGreeting, keyboardMarkup: CommonFunctions.CreateInlineKeyboard(this.MainMenuDescription)));
-        }
 
         private void CreatePostCommandButtonReaction(object? ChatId)
         {
