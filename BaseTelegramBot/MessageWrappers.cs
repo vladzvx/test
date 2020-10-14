@@ -8,6 +8,8 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using DataBaseWorker;
+using Telegram.Bot.Types.ReplyMarkups;
+
 namespace BaseTelegramBot
 {
     public class WrapperFactory
@@ -31,12 +33,14 @@ namespace BaseTelegramBot
             wrapper.DBWorker = this.dBWorker;
             return wrapper;
         }
-        public IMessageToSend CreateAlbum(ChatId RecipientId, List<string> media_ids, string text, int inReplyOf = 0)
+        public IMessageToSend CreateAlbum(ChatId RecipientId, List<string> media_ids, string text, int inReplyOf = 0,
+            InlineKeyboardMarkup keyboardMarkup = null)
         {
             return ApplySettings(new MegiaGroupWrapper(RecipientId, media_ids, text, inReplyOf: inReplyOf));
         }
 
-        public IMessageToSend CreatePhoto(ChatId RecipientId, string media_id, string text, int inReplyOf = 0)
+        public IMessageToSend CreatePhoto(ChatId RecipientId, string media_id, string text, int inReplyOf = 0, 
+            InlineKeyboardMarkup keyboardMarkup = null)
         {
             return ApplySettings(new PhotoWrapper(RecipientId, media_id, text, inReplyOf: inReplyOf));
         }
@@ -48,33 +52,41 @@ namespace BaseTelegramBot
         {
             return ApplySettings(new StickerWrapper(RecipientId, media_id, inReplyOf: inReplyOf));
         }
-        public IMessageToSend CreateMessage(Message message, string text)
+        public IMessageToSend CreateMessage(Message message, string text, InlineKeyboardMarkup keyboardMarkup = null)
         {
-            return ApplySettings(new BaseWrapper(message, text));
+            return ApplySettings(new BaseWrapper(message, text, keyboardMarkup:keyboardMarkup));
         }
-        public IMessageToSend CreateMessage(long RecipientId, string text, int inReplyOf = 0)
+        public IMessageToSend CreateMessage(long RecipientId, string text, int inReplyOf = 0, InlineKeyboardMarkup keyboardMarkup = null)
         {
-            return ApplySettings(new BaseWrapper(RecipientId, text, inReplyOf));
+            return ApplySettings(new BaseWrapper(RecipientId, text, inReplyOf, keyboardMarkup));
         }
-        public IMessageToSend CreateMessage(ChatId RecipientId, string text, int inReplyOf = 0)
+        public IMessageToSend CreateMessage(ChatId RecipientId, string text, int inReplyOf = 0, IReplyMarkup keyboardMarkup = null)
         {
-            return ApplySettings(new BaseWrapper(RecipientId, text, inReplyOf));
+            return ApplySettings(new BaseWrapper(RecipientId, text, inReplyOf, keyboardMarkup));
         }
         public IMessageToSend CreateMessageForwarding(ChatId To, ChatId From, int Id)
         {
-            return ApplySettings(new ForwardingWrapper(To, From, Id));
+            return ApplySettings(new ForwardingWrapper(From, To, Id));
         }
+        public IMessageToSend CreateKeyboardEditingRequest(long RecipientId, int MessageId, InlineKeyboardMarkup keyboardMarkup)
+        {
+            return ApplySettings(new KeyboardEditingWrapper(RecipientId, MessageId, keyboardMarkup));
+        }
+        
     }
     class BaseWrapper : IMessageToSend
     {
+        public int delay = 0;
         internal object locker = new object();
         public Message linkedMessage;
         public Message result;
+        public IReplyMarkup keyboardMarkup;
         public string bot_token;
         public DBWorker DBWorker;
         public bool finished = false;
         public NLog.Logger logger;
         public Task<Message> SendingTask;
+        public Task FinishingTask;
         public long _ChatID;
         internal ChatId ChatID;
         internal string text;
@@ -82,10 +94,11 @@ namespace BaseTelegramBot
         public TelegramBotClient client;
         internal CancellationToken cancellation = default;
         internal bool disableNotification = false;
-        public BaseWrapper(Message message, string text, bool reply = false)
+        public BaseWrapper(Message message, string text, bool reply = false, IReplyMarkup keyboardMarkup =null)
         {
             try
             {
+                this.keyboardMarkup = keyboardMarkup;
                 if (reply)
                     this.inReplyOf = message.MessageId;
                 else
@@ -100,10 +113,11 @@ namespace BaseTelegramBot
             }
 
         }
-        public BaseWrapper(long recip, string text, int inReplyOf = 0)
+        public BaseWrapper(long recip, string text, int inReplyOf = 0, IReplyMarkup keyboardMarkup = null)
         {
             try
             {
+                this.keyboardMarkup = keyboardMarkup;
                 this.inReplyOf = inReplyOf;
                 this.text = text;
                 this._ChatID = recip;
@@ -114,10 +128,12 @@ namespace BaseTelegramBot
 
             }
         }
-        public BaseWrapper(ChatId recip, string text, int inReplyOf = 0)
+        public BaseWrapper(ChatId recip, string text, int inReplyOf = 0, IReplyMarkup keyboardMarkup = null)
         {
             try
             {
+                this.delay = 0;
+                this.keyboardMarkup = keyboardMarkup;
                 this.inReplyOf = inReplyOf;
                 this.text = text;
                 this.ChatID = recip;
@@ -138,11 +154,20 @@ namespace BaseTelegramBot
             SendingTask = client.SendTextMessageAsync(ChatID, text,
                 replyToMessageId: inReplyOf,
                 cancellationToken: cancellation,
-                disableNotification: disableNotification, parseMode: ParseMode.Html);
-            SendingTask.ContinueWith(FinishSending);
+                disableNotification: disableNotification, parseMode: ParseMode.Html,replyMarkup:keyboardMarkup);
+            SendingTask.ContinueWith(LogResult);
         }
 
-
+        public void SetFinished()
+        {
+            FinishingTask = Task.Delay(delay);
+            FinishingTask.ContinueWith(setFinished);
+        }
+        public void setFinished(Task t)
+        {
+            lock (locker)
+                finished = true;
+        }
         public long GetChatId()
         {
             return _ChatID;
@@ -152,18 +177,16 @@ namespace BaseTelegramBot
         {
             linkedMessage = message as Message;
         }
-        public virtual void FinishSending(Task<Message> t)
+        public virtual void LogResult(Task<Message> t)
         {
             lock (locker)
             {
-                
-                finished = true;
+                SetFinished();
                 if (t.IsCompletedSuccessfully)
                 {
                     this.result = t.Result;
                     logToDB();
-                }
-                    
+                }    
             }
 
         }
@@ -179,9 +202,31 @@ namespace BaseTelegramBot
             if (result != null)
             {
                 DBWorker.add_message(DateTime.UtcNow, DateTime.UtcNow, result.MessageId,
-                    result.Chat.Id, result.From.Id, result.ReplyToMessage == null ? 0 : result.ReplyToMessage.MessageId,
+                    result.Chat.Id, result.From!=null? ((long?)result.From.Id) : null, result.ReplyToMessage == null ? 0 : result.ReplyToMessage.MessageId,
                     bot_token, result.Text, result.Caption, result.Photo != null ? result.Photo.Last().FileId : null,
-                    result.MediaGroupId, true, pairChatId, pairMessageId);
+                    result.MediaGroupId, true, pairChatId, pairMessageId, ButtonsData: CommonFunctions.CteateReturningValuesFromKeyboard(result.ReplyMarkup));
+            }
+
+        }
+    }
+
+    class KeyboardEditingWrapper : BaseWrapper
+    {
+        public int message_id;
+        public KeyboardEditingWrapper(long recipient, int message_id,InlineKeyboardMarkup keyboardMarkup) 
+            :base(recipient,string.Empty,keyboardMarkup: keyboardMarkup)
+        {
+            delay = 1000;
+            this.message_id = message_id;
+        }
+
+        public override void Send()
+        {
+            InlineKeyboardMarkup mark = this.keyboardMarkup as InlineKeyboardMarkup;
+            if (mark != null)
+            {
+                SendingTask = client.EditMessageReplyMarkupAsync(this.ChatID, this.message_id, mark);
+                SendingTask.ContinueWith(LogResult);
             }
 
         }
@@ -203,7 +248,7 @@ namespace BaseTelegramBot
         public override void Send()
         {
             SendingTask = this.client.ForwardMessageAsync(To, From, MessageID);
-            SendingTask.ContinueWith(FinishSending);
+            SendingTask.ContinueWith(LogResult);
         }
     }
     class MegiaGroupWrapper : BaseWrapper
@@ -211,8 +256,9 @@ namespace BaseTelegramBot
         public new Task<Message[]> SendingTask;
         public new Message[] result;
         List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
-        public MegiaGroupWrapper(ChatId To, List<string> InputMediaIds, string text, int inReplyOf) :
-            base(To, "")
+        public MegiaGroupWrapper(ChatId To, List<string> InputMediaIds, string text, int inReplyOf,
+            InlineKeyboardMarkup keyboardMarkup = null) :
+            base(To, "",keyboardMarkup:keyboardMarkup)
         {
             this.ChatID = To;
             this._ChatID = To.Identifier;
@@ -230,24 +276,19 @@ namespace BaseTelegramBot
                 media.Add(inputMediaPhoto);
                 i++;
             }
-
-
-
         }
         public virtual void FinishSending(Task<Message[]> t)
         {
             lock (locker)
             {
 
-                finished = true;
+                SetFinished();
                 if (t.IsCompletedSuccessfully)
                 {
                     this.result = t.Result;
                     logToDB();
                 }
-
             }
-
         }
         public override void logToDB()
         {
@@ -263,11 +304,10 @@ namespace BaseTelegramBot
                 foreach (Message mess in result)
                 {
                     DBWorker.add_message(DateTime.UtcNow, DateTime.UtcNow, mess.MessageId,
-                        mess.Chat.Id, mess.From.Id, mess.ReplyToMessage == null ? 0 : mess.ReplyToMessage.MessageId,
+                        mess.Chat.Id, mess.From!=null?((long?)mess.From.Id):null, mess.ReplyToMessage == null ? 0 : mess.ReplyToMessage.MessageId,
                         bot_token, mess.Text, mess.Caption, mess.Photo != null ? mess.Photo.Last().FileId : null,
-                        mess.MediaGroupId, true, pairChatId, pairMessageId);
+                        mess.MediaGroupId, true, pairChatId, pairMessageId,ButtonsData: CommonFunctions.CteateReturningValuesFromKeyboard(mess.ReplyMarkup));
                 }
-
             }
 
         }
@@ -275,13 +315,15 @@ namespace BaseTelegramBot
         {
             SendingTask = client.SendMediaGroupAsync(media, ChatID, replyToMessageId: inReplyOf);
             SendingTask.ContinueWith(FinishSending);
+            //SendingTask.Wait();
         }
     }
     class PhotoWrapper : BaseWrapper
     {
         InputOnlineFile inputOnlineFile;
-        public PhotoWrapper(ChatId To, string InputMediaId, string text, int inReplyOf) :
-            base(To, "")
+        public PhotoWrapper(ChatId To, string InputMediaId, string text, int inReplyOf,
+            InlineKeyboardMarkup keyboardMarkup = null) :
+            base(To, "", keyboardMarkup: keyboardMarkup)
         {
             this.ChatID = To;
             this._ChatID = To.Identifier;
@@ -293,8 +335,8 @@ namespace BaseTelegramBot
         public override void Send()
         {
             SendingTask = client.SendPhotoAsync(ChatID, inputOnlineFile, caption: text,
-                replyToMessageId: inReplyOf, parseMode: ParseMode.Html);
-            SendingTask.ContinueWith(FinishSending);
+                replyToMessageId: inReplyOf, parseMode: ParseMode.Html,replyMarkup:keyboardMarkup);
+            SendingTask.ContinueWith(LogResult);
 
 
         }
@@ -315,7 +357,7 @@ namespace BaseTelegramBot
         {
             SendingTask = client.SendStickerAsync(ChatID, inputOnlineFile,
                 replyToMessageId: inReplyOf);
-            SendingTask.ContinueWith(FinishSending);
+            SendingTask.ContinueWith(LogResult);
         }
     }
 
@@ -336,7 +378,7 @@ namespace BaseTelegramBot
         {
             SendingTask = client.SendAnimationAsync(ChatID, inputOnlineFile,
                 replyToMessageId: inReplyOf,caption:text,parseMode: ParseMode.Html);
-            SendingTask.ContinueWith(FinishSending);
+            SendingTask.ContinueWith(LogResult);
         }
     }
 }

@@ -7,6 +7,28 @@ using System.Threading.Tasks;
 
 namespace DataBaseWorker
 {
+    public struct PostingTask
+    {
+        public DateTime PublishTime;
+        public int id;
+        public long TargetChannel;
+        public long SourceChat;
+        public long SourceMessageId;
+        public string TaskType;
+        public string text ;
+        public string caption ;
+        public string media_id ;
+        public string media_group_id;
+        public string channel_name;
+    }
+
+    public struct Reaction
+    {
+        public int task_id;
+        public int reaction_id;
+        public string reaction_text;
+        public int reaction_counter;
+    }
     public class DataContainer
     {
         public enum ContainerType
@@ -42,14 +64,15 @@ namespace DataBaseWorker
         public bool is_channel;
         public bool is_group;
         public bool? is_active=null;
+        public string[] ButtonsData = null;
         public DateTime? FineEnd;
         public DateTime? BanEnd;
         #endregion
 
         #region constructors
-        public DataContainer(DateTime MessageTimestamp, DateTime ClientTimestamp, long message_id, long chat_id, long user_id, long in_reply_of,
+        public DataContainer(DateTime MessageTimestamp, DateTime ClientTimestamp, long message_id, long chat_id, long? user_id, long in_reply_of,
             string bot_token, string text = null, string caption = null, string media_tg_id = null,string media_group_id=null, 
-            bool is_output = false,long? pair_message_id=null, long? pair_chat_id =null)
+            bool is_output = false,long? pair_message_id=null, long? pair_chat_id =null,string[] ButtonsData=null)
         {
             containerType = DataContainer.ContainerType.Message;
             this.MessageTimestamp = MessageTimestamp;
@@ -66,6 +89,7 @@ namespace DataBaseWorker
             this.is_output = is_output;
             this.pair_chat_id = pair_chat_id;
             this.pair_message_id = pair_message_id;
+            this.ButtonsData = ButtonsData;
         }
 
         public DataContainer(DateTime ClientTimestamp, long user_id,
@@ -181,8 +205,21 @@ namespace DataBaseWorker
         NpgsqlCommand _get_user_by_chat;
         NpgsqlCommand _set_group;
         NpgsqlCommand _get_active_private_chats;
+        NpgsqlCommand _get_active_channels;
         NpgsqlCommand _get_groups;
         NpgsqlCommand _get_bots;
+        NpgsqlCommand _get_last_user_messageid_in_chat;
+        NpgsqlCommand _add_task;
+        NpgsqlCommand _update_task_time;
+        NpgsqlCommand _task_comlited;
+        NpgsqlCommand _reject_task;
+        NpgsqlCommand _reject_task2;
+        NpgsqlCommand _get_active_tasks;
+        NpgsqlCommand _get_future_tasks;
+        NpgsqlCommand _get_reaction_id;
+        NpgsqlCommand _count_reaction;
+        NpgsqlCommand _get_reactions_by_task;
+        NpgsqlCommand _get_counted_reactions;
         #endregion
 
         #region constructor and destructor
@@ -198,7 +235,76 @@ namespace DataBaseWorker
             this._get_bot_id.CommandType = System.Data.CommandType.StoredProcedure;
             this._get_bot_id.CommandText = "get_bot_id";
             this._get_bot_id.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._get_reaction_id = ReadConnention.CreateCommand();
+            this._get_reaction_id.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_reaction_id.CommandText = "get_reaction_id";
+            this._get_reaction_id.Parameters.Add(new NpgsqlParameter("text", NpgsqlTypes.NpgsqlDbType.Text));
+            this._get_reaction_id.Parameters.Add(new NpgsqlParameter("chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._get_reaction_id.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._count_reaction = ReadConnention.CreateCommand();
+            this._count_reaction.CommandType = System.Data.CommandType.StoredProcedure;
+            this._count_reaction.CommandText = "count_reaction";
+            this._count_reaction.Parameters.Add(new NpgsqlParameter("id", NpgsqlTypes.NpgsqlDbType.Integer));
+            this._count_reaction.Parameters.Add(new NpgsqlParameter("user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+
+            this._add_task = ReadConnention.CreateCommand();
+            this._add_task.CommandType = System.Data.CommandType.StoredProcedure;
+            this._add_task.CommandText = "add_task";
+            this._add_task.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._add_task.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._add_task.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+            this._add_task.Parameters.Add(new NpgsqlParameter("_task_type", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._update_task_time = ReadConnention.CreateCommand();
+            this._update_task_time.CommandType = System.Data.CommandType.StoredProcedure;
+            this._update_task_time.CommandText = "update_task_time";
+            this._update_task_time.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            //this._update_task_time.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._update_task_time.Parameters.Add(new NpgsqlParameter("_action_time", NpgsqlTypes.NpgsqlDbType.Timestamp));
+            this._update_task_time.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._reject_task = ReadConnention.CreateCommand();
+            this._reject_task.CommandType = System.Data.CommandType.StoredProcedure;
+            this._reject_task.CommandText = "task_rejected";
+            this._reject_task.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._reject_task.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._reject_task2 = ReadConnention.CreateCommand();
+            this._reject_task2.CommandType = System.Data.CommandType.StoredProcedure;
+            this._reject_task2.CommandText = "task_rejected";
+            this._reject_task2.Parameters.Add(new NpgsqlParameter("_task_id", NpgsqlTypes.NpgsqlDbType.Integer));
+
+
+            this._task_comlited = ReadConnention.CreateCommand();
+            this._task_comlited.CommandType = System.Data.CommandType.StoredProcedure;
+            this._task_comlited.CommandText = "task_complited";
+            this._task_comlited.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_comlited.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_comlited.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._get_active_tasks = ReadConnention.CreateCommand();
+            this._get_active_tasks.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_active_tasks.CommandText = "get_active_tasks";
+            this._get_active_tasks.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._get_future_tasks = ReadConnention.CreateCommand();
+            this._get_future_tasks.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_future_tasks.CommandText = "get_future_tasks";
+            this._get_future_tasks.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+
+            this._get_reactions_by_task = ReadConnention.CreateCommand();
+            this._get_reactions_by_task.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_reactions_by_task.CommandText = "get_reactions_by_task";
+            this._get_reactions_by_task.Parameters.Add(new NpgsqlParameter("_task_id", NpgsqlTypes.NpgsqlDbType.Integer));            
             
+            this._get_counted_reactions = ReadConnention.CreateCommand();
+            this._get_counted_reactions.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_counted_reactions.CommandText = "get_counted_reactions";
+            this._get_counted_reactions.Parameters.Add(new NpgsqlParameter("id", NpgsqlTypes.NpgsqlDbType.Integer));
+
 
             this._get_pair_chat_id = ReadConnention.CreateCommand();
             this._get_pair_chat_id.CommandType = System.Data.CommandType.StoredProcedure;
@@ -251,6 +357,7 @@ namespace DataBaseWorker
             this._add_message.Parameters.Add(new NpgsqlParameter("_is_output", NpgsqlTypes.NpgsqlDbType.Boolean));
             this._add_message.Parameters.Add(new NpgsqlParameter("_pair_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._add_message.Parameters.Add(new NpgsqlParameter("_pair_message_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._add_message.Parameters.Add(new NpgsqlParameter("_buttons", NpgsqlTypes.NpgsqlDbType.Text | NpgsqlTypes.NpgsqlDbType.Array| NpgsqlTypes.NpgsqlDbType.Array));
 
             this._get_messages = ReadConnention.CreateCommand();
             this._get_messages.CommandType = System.Data.CommandType.Text;
@@ -280,6 +387,12 @@ namespace DataBaseWorker
             this._get_active_private_chats.CommandText = "select chat_id,user_group,bot_id from public.chats" +
                 " where is_group=false and is_channel=false and is_active=true";
 
+            this._get_active_channels = ReadConnention.CreateCommand();
+            this._get_active_channels.CommandType = System.Data.CommandType.Text;
+            this._get_active_channels.CommandText = "select chat_id,name from chats inner join bots on bots.bot_id = chats.bot_id " +
+                "where is_channel and bots.tg_bot_token=@token;";
+            this._get_active_channels.Parameters.Add("token", NpgsqlTypes.NpgsqlDbType.Text);
+
             this._get_groups = ReadConnention.CreateCommand();
             this._get_groups.CommandType = System.Data.CommandType.Text;
             this._get_groups.CommandText = "select distinct user_group from public.chats " +
@@ -298,6 +411,14 @@ namespace DataBaseWorker
             this._get_user_by_chat.CommandType = System.Data.CommandType.Text;
             this._get_user_by_chat.CommandText = "select user_id from public.chats where chat_id=@_chat_id and is_group=false and not is_channel;";
             this._get_user_by_chat.Parameters.Add("_chat_id",NpgsqlTypes.NpgsqlDbType.Bigint);
+
+            this._get_last_user_messageid_in_chat = ReadConnention.CreateCommand();
+            this._get_last_user_messageid_in_chat.CommandType = System.Data.CommandType.Text;
+            this._get_last_user_messageid_in_chat.CommandText = "select Max(messages.message_id) from messages inner join bots on " +
+                "bots.bot_id = messages.bot_id where bots.tg_bot_token=@token and messages.chat_id=@chatid and messages.user_id=@user_id;";
+            this._get_last_user_messageid_in_chat.Parameters.Add("token", NpgsqlTypes.NpgsqlDbType.Text);
+            this._get_last_user_messageid_in_chat.Parameters.Add("chatid", NpgsqlTypes.NpgsqlDbType.Bigint);
+            this._get_last_user_messageid_in_chat.Parameters.Add("user_id", NpgsqlTypes.NpgsqlDbType.Bigint);
 
             this._check_ban = ReadConnention.CreateCommand();
             this._check_ban.CommandType = System.Data.CommandType.StoredProcedure;
@@ -372,6 +493,57 @@ namespace DataBaseWorker
             return result;
         }
 
+        public List<Tuple<long,string>> get_active_channels(string bot_token)
+        {
+            List<Tuple<long, string>> result = new List<Tuple<long, string>>();
+            int bot_id = get_bot_id(bot_token);
+            lock (ReadLocker)
+            {
+                _get_active_channels.Parameters["token"].Value = bot_token;
+                using (NpgsqlDataReader reader = _get_active_channels.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            long chat_id = reader.GetInt64(0);
+                            string name = reader.GetString(1);
+                            result.Add(Tuple.Create(chat_id, name));
+
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+
+        public int get_last_user_messageid_in_chat(string bot_token,long user_id,long chat_id)
+        {
+            int result = 2;
+            lock (ReadLocker)
+            {
+                _get_last_user_messageid_in_chat.Parameters["token"].Value = bot_token;
+                _get_last_user_messageid_in_chat.Parameters["chatid"].Value = chat_id;
+                _get_last_user_messageid_in_chat.Parameters["user_id"].Value = user_id;
+                using (NpgsqlDataReader reader = _get_last_user_messageid_in_chat.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result = reader.GetInt32(0);
+                        }
+                        catch (System.InvalidCastException) { }
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
         public List<string> get_all_bots()
         {
             List<string> result = new List<string>();
@@ -454,6 +626,40 @@ namespace DataBaseWorker
                 }
             }
             return result;
+        }
+        
+        public int get_reaction_id(string text, long chat_id,string token)
+        {
+            int result = 0;
+            lock (ReadLocker)
+            {
+                this._get_reaction_id.Parameters["text"].Value = SetDBNullIfNull(text);
+                this._get_reaction_id.Parameters["chat_id"].Value = SetDBNullIfNull(chat_id);
+                this._get_reaction_id.Parameters["bot_token"].Value = SetDBNullIfNull(token);
+                using (NpgsqlDataReader reader = _get_reaction_id.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result = reader.GetInt32(0);
+                        }
+                        catch (InvalidCastException) { }
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public void count_reaction(int id,long user_id)
+        {
+            lock (ReadLocker)
+            {
+                this._count_reaction.Parameters["id"].Value = SetDBNullIfNull(id);
+                this._count_reaction.Parameters["user_id"].Value = SetDBNullIfNull(user_id);
+                _count_reaction.ExecuteNonQuery();
+            }
         }
         public void ban_user(long user_id, long chat_id, string bot_token)
         {
@@ -576,6 +782,195 @@ namespace DataBaseWorker
             return temp.Max();
         }
 
+
+        public void add_task(long source_chat_id, long target_chat_id, string bot_token, string task_type)
+        {
+            lock (ReadLocker)
+            {
+                _add_task.Parameters["source_chat_id"].Value = source_chat_id;
+                _add_task.Parameters["target_chat_id"].Value = target_chat_id;
+                _add_task.Parameters["bot_token"].Value = bot_token;
+                _add_task.Parameters["_task_type"].Value = task_type;
+                _add_task.ExecuteNonQuery();
+            }
+        }
+
+        //public List<PostingTask> get_active_tasks(long source_chat_id, long target_chat_id, string bot_token)
+        public List<PostingTask> get_active_tasks(string bot_token)
+        {
+            List<PostingTask> result = new List<PostingTask>();
+            lock (ReadLocker)
+            {
+                //_get_active_tasks.Parameters["source_chat_id"].Value = source_chat_id;
+                //_get_active_tasks.Parameters["target_chat_id"].Value = target_chat_id;
+                _get_active_tasks.Parameters["bot_token"].Value = bot_token;
+                using (NpgsqlDataReader reader = _get_active_tasks.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result.Add(new PostingTask()
+                            {
+                                SourceChat = reader.GetInt64(0),
+                                SourceMessageId = reader.GetInt32(1),
+                                TargetChannel = reader.GetInt64(3),
+                                TaskType = !reader.IsDBNull(2) ? reader.GetString(2) : null,
+                                caption = !reader.IsDBNull(5) ? reader.GetString(5) : null,
+                                text = !reader.IsDBNull(4) ? reader.GetString(4) : null,
+                                media_id = !reader.IsDBNull(6) ? reader.GetString(6) : null,
+                                media_group_id = !reader.IsDBNull(7) ? reader.GetString(7) : null,
+                                id = reader.GetInt32(8),
+                                PublishTime = reader.GetDateTime(9),
+                                channel_name = !reader.IsDBNull(10) ? reader.GetString(10) : string.Empty
+                            }) ;
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public List<PostingTask> get_future_tasks(string bot_token)
+        {
+            List<PostingTask> result = new List<PostingTask>();
+            lock (ReadLocker)
+            {
+                _get_future_tasks.Parameters["bot_token"].Value = bot_token;
+                using (NpgsqlDataReader reader = _get_future_tasks.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result.Add(new PostingTask()
+                            {
+                                SourceChat = reader.GetInt64(0),
+                                SourceMessageId = reader.GetInt32(1),
+                                TargetChannel = reader.GetInt64(3),
+                                TaskType = !reader.IsDBNull(2) ? reader.GetString(2) : null,
+                                caption = !reader.IsDBNull(5) ? reader.GetString(5) : null,
+                                text = !reader.IsDBNull(4) ? reader.GetString(4) : null,
+                                media_id = !reader.IsDBNull(6) ? reader.GetString(6) : null,
+                                media_group_id = !reader.IsDBNull(7) ? reader.GetString(7) : null,
+                                id = reader.GetInt32(8),
+                                PublishTime = reader.GetDateTime(9),
+                                channel_name = !reader.IsDBNull(10) ? reader.GetString(10) : string.Empty
+                            });
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public List<Reaction> get_reactions_by_task(int _task_id)
+        {
+            List<Reaction> result = new List<Reaction>();
+            lock (ReadLocker)
+            {
+
+                _get_reactions_by_task.Parameters["_task_id"].Value = _task_id;
+                using (NpgsqlDataReader reader = _get_reactions_by_task.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result.Add(new Reaction()
+                            {
+                                task_id = reader.GetInt32(0),
+                                reaction_id = reader.GetInt32(1),
+                                reaction_text = reader.GetString(2),
+                                reaction_counter = reader.GetInt32(3),
+                            }) ;
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public List<Reaction> get_counted_reactions(int reaction_id)
+        {
+            List<Reaction> result = new List<Reaction>();
+            lock (ReadLocker)
+            {
+                _get_counted_reactions.Parameters["id"].Value = reaction_id;
+                using (NpgsqlDataReader reader = _get_counted_reactions.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result.Add(new Reaction()
+                            {
+                                task_id = reader.GetInt32(0),
+                                reaction_id = reader.GetInt32(1),
+                                reaction_text = reader.GetString(2),
+                                reaction_counter = reader.GetInt32(3),
+                            });
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+
+        public void update_task_time(long source_chat_id, string bot_token, DateTime action_time)
+        {
+            lock (ReadLocker)
+            {
+                _update_task_time.Parameters["source_chat_id"].Value = source_chat_id;
+                _update_task_time.Parameters["_action_time"].Value = action_time;
+                _update_task_time.Parameters["bot_token"].Value = bot_token;
+                _update_task_time.ExecuteNonQuery();
+            }
+        }
+
+        public void task_complited(long source_chat_id, long target_chat_id, string bot_token)
+        {
+            lock (ReadLocker)
+            {
+                _task_comlited.Parameters["source_chat_id"].Value = source_chat_id;
+                _task_comlited.Parameters["target_chat_id"].Value = target_chat_id;
+                _task_comlited.Parameters["bot_token"].Value = bot_token;
+                _task_comlited.ExecuteNonQuery();
+            }
+        }
+
+        public void task_rejected(long source_chat_id, string bot_token)
+        {
+            lock (ReadLocker)
+            {
+                _reject_task.Parameters["source_chat_id"].Value = source_chat_id;
+                _reject_task.Parameters["bot_token"].Value = bot_token;
+                _reject_task.ExecuteNonQuery();
+            }
+        }
+
+        public void task_rejected(int task_id)
+        {
+            lock (ReadLocker)
+            {
+                _reject_task2.Parameters["_task_id"].Value = task_id;
+                _reject_task2.ExecuteNonQuery();
+            }
+        }
+
         public long? get_pair_chat_id(long chat_id,long message_id,string bot_token)
         {
             long? result=null;
@@ -656,14 +1051,14 @@ namespace DataBaseWorker
             Write();
         }
         public void add_message(DateTime MessageTimestamp, DateTime ClientTimestamp, long message_id,
-            long chat_id, long user_id, long in_reply_of, string bot_token, string text = null, 
+            long chat_id, long? user_id, long in_reply_of, string bot_token, string text = null, 
             string caption = null, string media_tg_id = null, string media_group_id = null, bool is_output = false,
-            long? pair_chat_id=null, long? pair_message_id = null)
+            long? pair_chat_id=null, long? pair_message_id = null,string[] ButtonsData=null)
         {
             logger.Trace(string.Format("add_message called! ClientTimestamp: {0}, message_id: {1}, chat_id: {2}, user_id: {3}, text: {4}, reciver(bot/client) token: {5}",
                 ClientTimestamp, message_id, chat_id, user_id, text ?? caption ?? "null", bot_token));
             AddContainer(new DataContainer(MessageTimestamp, ClientTimestamp, message_id, chat_id, user_id, in_reply_of,
-                bot_token, text, caption, media_tg_id, media_group_id, is_output, pair_message_id, pair_chat_id));
+                bot_token, text, caption, media_tg_id, media_group_id, is_output, pair_message_id, pair_chat_id, ButtonsData));
         }
         private void Write()
         {
@@ -750,6 +1145,7 @@ namespace DataBaseWorker
                             this._add_message.Parameters["_pair_message_id"].Value = SetDBNullIfNull(cont.is_output);
                             this._add_message.Parameters["_pair_chat_id"].Value = SetDBNullIfNull(cont.pair_chat_id);
                             this._add_message.Parameters["_pair_message_id"].Value = SetDBNullIfNull(cont.pair_message_id);
+                            this._add_message.Parameters["_buttons"].Value = SetDBNullIfNull(cont.ButtonsData);
                             int n_rows = _add_message.ExecuteNonQuery();
                             logger.Info(n_rows.ToString() + " rows wrote");
                             break;

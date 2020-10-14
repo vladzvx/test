@@ -16,6 +16,7 @@ using System.Reflection.Metadata;
 using Microsoft.Extensions.Hosting;
 using System.Threading;
 using System.Collections.Concurrent;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace BaseTelegramBot
 {
@@ -146,7 +147,8 @@ namespace BaseTelegramBot
 					message.ReplyToMessage!=null?message.ReplyToMessage.MessageId:0, 
 					token, CommonFunctions.TextFormatingRecovering(message.Entities, message.Text), 
 					CommonFunctions.TextFormatingRecovering(message.CaptionEntities, message.Caption),
-					message.Photo!=null? message.Photo.Last().FileId:null,message.MediaGroupId, isOutput);
+					message.Photo!=null? message.Photo.Last().FileId:null,message.MediaGroupId, isOutput,
+					ButtonsData: CommonFunctions.CteateReturningValuesFromKeyboard(message.ReplyMarkup));
 			}
 			catch(Exception ex)
             {
@@ -265,7 +267,7 @@ namespace BaseTelegramBot
 			ParseHelpCommand(message, ref continuation);
 			add_chat(message.Chat, message.From, is_alive);
 		}
-		private bool? ParseStartStopCommands(Message message, ref bool continuation)
+		public virtual bool? ParseStartStopCommands(Message message, ref bool continuation)
         {
 			bool? is_alive = null;
 			if (message.Text != null)
@@ -275,7 +277,8 @@ namespace BaseTelegramBot
 				{
 					is_alive = true;
 					continuation = false;
-					sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), PrivateChatGreeting));
+					if (PrivateChatGreeting!=null&&!PrivateChatGreeting.Equals(string.Empty))
+						sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), PrivateChatGreeting));
 				}
 				else if (StopCommands.Contains(text))
 				{
@@ -352,6 +355,8 @@ namespace BaseTelegramBot
 			return result;
 
 		}
+
+
 		#endregion
 	}
 }

@@ -22,6 +22,7 @@ namespace FeedbackBot
             viewgroups,
             push
         }
+
         public FeedBackBot(string token, string DBConnectionString) : base(token, DBConnectionString)
         {
             PrivateChatGreeting = "Добрый день! Напишите боту сообщение и мы его прочтем.";
@@ -76,6 +77,7 @@ namespace FeedbackBot
                 }
             }
         }
+
         public override void GroupChatProcessing(Message message, ref bool continuation)
         {
             bool? is_alive = null;

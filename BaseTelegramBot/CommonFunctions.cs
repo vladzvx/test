@@ -3,11 +3,71 @@ using System.Collections.Generic;
 using System.Text;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace BaseTelegramBot
 {
+
     public static class CommonFunctions
     {
+        public static string[] CteateReturningValuesFromKeyboard(InlineKeyboardMarkup keyboard)
+        {
+            if (keyboard == null)
+            {
+                return null;
+            }
+            else
+            {
+                int element_counter = 0;
+                foreach (var button_row in keyboard.InlineKeyboard)
+                    foreach (var button in button_row)
+                        element_counter++;
+                    string[] result = new string[element_counter];
+                int i = 0;
+                foreach (var button_row in keyboard.InlineKeyboard)
+                {
+                    foreach (var button in button_row)
+                    {
+                        result[i] = button.CallbackData;
+                        i++;
+                    }
+                }
+                return result;
+            }
+        }
+        public static InlineKeyboardMarkup CreateInlineKeyboard(List<List<string>> ReturningValues)
+        {
+            List<List<InlineKeyboardButton>> buttons = new List<List<InlineKeyboardButton>>();
+            foreach (List<string> row in ReturningValues)
+            {
+                List<InlineKeyboardButton> ButtonsInRow = new List<InlineKeyboardButton>();
+                foreach (string ReturningData in row)
+                {
+                    ButtonsInRow.Add(new InlineKeyboardButton() { CallbackData = ReturningData, Text = ReturningData });
+
+                }
+                buttons.Add(ButtonsInRow);
+
+            }
+            return new InlineKeyboardMarkup(buttons);
+        }
+        public static InlineKeyboardMarkup CreateInlineKeyboard(List<List<string>> Texts, List<List<string>> ReturningValues)
+        {
+            List<List<InlineKeyboardButton>> buttons = new List<List<InlineKeyboardButton>>();
+          
+            for (int i=0;i<ReturningValues.Count;i++)
+            {
+                List<InlineKeyboardButton> ButtonsInRow = new List<InlineKeyboardButton>();
+                for (int j=0;j<ReturningValues[i].Count;j++)
+                {
+                    ButtonsInRow.Add(new InlineKeyboardButton() { CallbackData = ReturningValues[i][j], Text = Texts[i][j] });
+
+                }
+                buttons.Add(ButtonsInRow);
+
+            }
+            return new InlineKeyboardMarkup(buttons);
+        }
         public class EntityComparer : IComparer<MessageEntity>
         {
             int IComparer<MessageEntity>.Compare(MessageEntity x, MessageEntity y)
