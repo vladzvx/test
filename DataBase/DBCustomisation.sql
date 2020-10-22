@@ -39,7 +39,7 @@ create table public.chats (
     is_active bool default true not null,
     is_group bool default false,
     is_channel bool default false,
-    primary key (chat_id),
+    primary key (chat_id,bot_id),
   foreign key (bot_id) references public.bots (bot_id)
 );
 
@@ -79,8 +79,8 @@ create table public.tasks (
     action_time timestamp,
     primary key (task_id),
     foreign key (bot_id) references public.bots (bot_id),
-    foreign key (target_chat) references public.chats (chat_id),
-    foreign key (source_chat) references public.chats (chat_id),
+    foreign key (target_chat,bot_id) references public.chats (chat_id,bot_id),
+    foreign key (source_chat,bot_id) references public.chats (chat_id,bot_id),
     foreign key (task_status) references public.task_statuses (status_id)
 );
 

@@ -2,6 +2,8 @@ alter table public.bots add COLUMN bot_user_id bigint;
 alter table public.bots add COLUMN description text;
 alter table public.bots add COLUMN type text;
 
+update public.bots set type='FeedBack' where bots.type is null;
+
 create table public.task_statuses (
     status_id serial,
     status_name text,
@@ -17,7 +19,8 @@ insert into public.task_statuses (status_name) VALUES ('rejected');
 
 alter table public.chats add foreign key (bot_id) references public.bots (bot_id);
 alter table public.chats drop constraint chats_pkey;
-alter table public.chats add primary key (chat_id);
+
+alter table public.chats add primary key (chat_id,bot_id);
 
 alter table public.messages add FOREIGN KEY (user_id) references public.users (user_id);
 alter table public.messages drop constraint messages_user_id_fkey;
@@ -35,8 +38,8 @@ create table public.tasks (
     action_time timestamp,
     primary key (task_id),
     foreign key (bot_id) references public.bots (bot_id),
-    foreign key (target_chat) references public.chats (chat_id),
-    foreign key (source_chat) references public.chats (chat_id),
+    foreign key (target_chat,bot_id) references public.chats (chat_id,bot_id),
+    foreign key (source_chat,bot_id) references public.chats (chat_id,bot_id),
     foreign key (task_status) references public.task_statuses (status_id)
 );
 

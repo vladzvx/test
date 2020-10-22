@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
@@ -20,9 +21,9 @@ namespace BotManager
             Host.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
-                    string BotToken = hostContext.Configuration.GetSection("BotSettings:TelegramBotToken").Value;
-                    string ConnectionString = hostContext.Configuration.GetSection("BotSettings:DBConnectionString").Value;
-                    services.AddHostedService(sh=>new BotService(BotToken,ConnectionString));
+                    var cfg = new ConfigurationBuilder().AddJsonFile("appsettings.json").Build();
+                    services.AddHostedService(sh=>new BotService(cfg.GetSection("BotSettings:TelegramBotToken").Value,
+                        cfg.GetSection("BotSettings:DBConnectionString").Value));
 
                 });
     }

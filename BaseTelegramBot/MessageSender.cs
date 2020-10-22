@@ -99,7 +99,6 @@ namespace BaseTelegramBot
             {
                 try
                 {
-
                     logger.Debug("Sending action started.");
                     List<long> ids = new List<long>();
                     List<IMessageToSend> maxPriorityBuffer = new List<IMessageToSend>();

@@ -82,6 +82,7 @@ namespace BotManager
         private void AddBot(string token, Mode mode)
         {
             dBWorker.get_bot_id(token);
+            logger.Info("Creating new bot. token: " + token);
             if (this.bots.FindIndex(bot => bot.token == token)<0)
             {
                 BaseBot bot=null;
@@ -89,6 +90,7 @@ namespace BotManager
                 {
                     case Mode.FeedBack:
                         {
+                            logger.Info("Creating new bot. token.");
                             bot = new FeedbackBot.FeedBackBot(token, this.DBConnectionString);
                             dBWorker.add_bot(token, Mode.FeedBack.ToString());
                             break;
