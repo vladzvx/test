@@ -164,7 +164,7 @@ namespace BaseTelegramBot
                     MaxPriorityQuenue = new Queue<IMessageToSend>(maxPriorityBuffer);
                     minPriorityBuffer.AddRange(MinPriorityQuenue.ToList());
                     MinPriorityQuenue = new Queue<IMessageToSend>(minPriorityBuffer);
-                    logger.Info(string.Format("Sender queneues status: MaxPriorityQuenue size = {0}, " +
+                    logger.Debug(string.Format("Sender queneues status: MaxPriorityQuenue size = {0}, " +
                        "MainQuenue size = {1}, MinPriorityQuenue size = {2}",
                        MaxPriorityQuenue.Count,MainQuenue.Count,MinPriorityQuenue.Count));
                 }

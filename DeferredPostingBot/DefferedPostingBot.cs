@@ -122,6 +122,7 @@ namespace DefferedPosting
         private void OnTimerAction(object sender, ElapsedEventArgs e)
         {
             List<DataBaseWorker.PostingTask> postingTasks  = dBWorker.get_active_tasks(token);
+            logger.Debug(string.Format("Finded {0} tasks for posting!", postingTasks.Count));
             foreach (var task  in postingTasks)
             {
                 List<DataBaseWorker.Reaction> reactions = dBWorker.get_reactions_by_task(task.id);
@@ -169,159 +170,164 @@ namespace DefferedPosting
 
         public override void BotOnUpdateRecieved(object sender, UpdateEventArgs updateEventArgs)
         {
-            switch (updateEventArgs.Update.Type)
+            try
             {
-                case UpdateType.CallbackQuery:
-                    {
-                        long chatId = updateEventArgs.Update.CallbackQuery.Message.Chat.Id;
-                        switch (updateEventArgs.Update.CallbackQuery.Data)
+                switch (updateEventArgs.Update.Type)
+                {
+                    case UpdateType.CallbackQuery:
                         {
-                            case deffer:
-                                {
-                                    if (WorkModes.TryGetValue(chatId,out Mode mode))
+                            long chatId = updateEventArgs.Update.CallbackQuery.Message.Chat.Id;
+                            switch (updateEventArgs.Update.CallbackQuery.Data)
+                            {
+                                case deffer:
                                     {
-                                        sender_to_tg.Put(factory.CreateMessage(chatId, "Отправьте время публикации в формате ДД.ММ.ГГГГ ЧЧ:ММ:СС" +
-                                            "\n\n "+DateTime.Now.ToString()+" - текущее время"));
-                                        if (mode == Mode.PostCreation)
+                                        if (WorkModes.TryGetValue(chatId, out Mode mode))
                                         {
-                                            Stages.AddOrUpdate(chatId, 5, (oldkey, oldvalue) => 5);
-                                        }
-                                        else if (mode == Mode.RePostCreation)
-                                        {
-                                            Stages.AddOrUpdate(chatId, 2, (oldkey, oldvalue) => 2);
-                                        }
-                                    }
-                                    break;
-                                }
-                            case publicNow:
-                                {
-                                    ClearUnderChatMenu(chatId, "Успешно опубликовано!");
-                                    dBWorker.update_task_time(chatId, token, DateTime.UtcNow);
-                                    SetMode(chatId);
-                                    Stages.TryRemove(chatId, out int v);
-                                    SendDefaultMenu(chatId);
-                                    break;
-                                }
-                            case reactionsNo:
-                                {
-                                    Stages.AddOrUpdate(chatId, 4, (oldkey, oldvalue) => 4);
-                                    sender_to_tg.Put(factory.CreateMessage(chatId, "Опубликовать пост сейчас или отложить?",
-                                        keyboardMarkup: CreateShedulerQuestion()));
-                                    break;
-                                }
-                            case reactionsYes:
-                                {
-                                    CreateUnderChatReactionsMenu(chatId, "Выберите или введите реакции. " +
-                                        "Один символ - один лайк. Если нужно добавить текст введите их в виде [реакция1][реакция2]");
-                                    Stages.AddOrUpdate(chatId, 3, (oldkey, oldvalue) => 3);
-                                    break;
-                                }
-                            case CreatePostCommand:
-                                {
-                                    Task.Factory.StartNew(CreatePostCommandButtonReaction, chatId);
-                                    break;
-                                }
-                            case CreateRePostCommand:
-                                {
-                                    Task.Factory.StartNew(CreateRePostCommandButtonReaction, chatId);
-                                    break;
-                                }
-                            case DefferedPostsCommand:
-                                {
-                                    Mode mode = Mode.DefferedManaging;
-                                    WorkModes.AddOrUpdate(chatId, mode, (oldkey, oldvalue) => mode);
-                                    List<DataBaseWorker.PostingTask> postingTasks = dBWorker.get_future_tasks(token);
-                                    if (postingTasks.Count > 0)
-                                    {
-                                        List<List<string>> texts = new List<List<string>>();
-                                        List<List<string>> values = new List<List<string>>();
-                                        foreach (var tsk in postingTasks)
-                                        {
-                                            string ButtonText = string.Format("{0} {1}", tsk.channel_name, tsk.PublishTime);
-                                            string ReturnedValue = "task_" + tsk.id.ToString();
-                                            texts.Add(new List<string>() { ButtonText });
-                                            values.Add(new List<string>() { ReturnedValue });
-                                        }
-                                        InlineKeyboardMarkup keyboard = CommonFunctions.CreateInlineKeyboard(texts, values);
-                                        sender_to_tg.Put(factory.CreateMessage(chatId, "Выберете отложенное сообщение:", keyboardMarkup: keyboard));
-                                        CreateUnderChatMenu(chatId, "Или отмените действие");
-                                    }
-                                    else
-                                    {
-                                        ClearUnderChatMenu(chatId, "Нет ни одного отложенного сообщения!");
-                                        SendDefaultMenu(chatId);
-                                        SetMode(chatId);
-                                    }
-
-                                    break;
-                                }
-                            case EditPostsCommand:
-                                {
-                                    Mode mode = Mode.PostEditing;
-                                    WorkModes.AddOrUpdate(chatId, mode, (oldkey, oldvalue) => mode);
-                                    break;
-                                }
-                            case AddChannelCommand:
-                                {
-                                    Task.Factory.StartNew(AddChannelButtonReaction, chatId);
-                                    break;
-                                }
-                            default:
-                                {
-                                    if (long.TryParse(updateEventArgs.Update.CallbackQuery.Data, out long channel_id) &&
-                                        WorkModes.TryGetValue(chatId, out Mode currentMode))
-                                    {
-                                        if (currentMode == Mode.PostCreation)
-                                        {
-                                            if (!Stages.TryGetValue((long)chatId, out int st))
+                                            sender_to_tg.Put(factory.CreateMessage(chatId, "Отправьте время публикации в формате, аналогичном текущему времени:" +
+                                                "\n\n " + DateTime.Now.ToString()));
+                                            if (mode == Mode.PostCreation)
                                             {
-                                                Stages.AddOrUpdate((long)chatId, 1, (oldkey, oldvalue) => 1);
-                                                dBWorker.add_task((long)chatId, channel_id, token, Mode.PostCreation.ToString());
-                                                CreateUnderChatMenu((long)chatId, "Канал выбран! Отправьте боту то, что хотите опубликовать. " +
-                                                    "Это может быть всё, что угодно – текст, фото, альбом, видео, даже стикеры.");
+                                                Stages.AddOrUpdate(chatId, 5, (oldkey, oldvalue) => 5);
+                                            }
+                                            else if (mode == Mode.RePostCreation)
+                                            {
+                                                Stages.AddOrUpdate(chatId, 2, (oldkey, oldvalue) => 2);
                                             }
                                         }
-                                        else if (currentMode == Mode.RePostCreation)
-                                        {
-                                            Stages.AddOrUpdate((long)chatId, 1, (oldkey, oldvalue) => 1);
-                                            dBWorker.add_task((long)chatId, channel_id, token, Mode.RePostCreation.ToString());
-                                            CreateUnderChatMenu((long)chatId, "Канал выбран! Перешлите боту сообщение, которое хотите репостнуть. " +
-                                                "Это может быть текст, фото, видео, даже стикеры, но не альбом.");
-                                        }
                                         break;
                                     }
-                                    Match ReactionMatch = ReactionReg.Match(updateEventArgs.Update.CallbackQuery.Data);
-                                    if (ReactionMatch.Success && int.TryParse(ReactionMatch.Groups[1].Value, out int ReactionId))
+                                case publicNow:
                                     {
-                                        dBWorker.count_reaction(ReactionId, updateEventArgs.Update.CallbackQuery.From.Id);
-                                        var reactions = dBWorker.get_counted_reactions(ReactionId);
-                                        if (reactions != null&& reactions.Count > 0)
-                                        {
-                                            InlineKeyboardMarkup keybpard = CommonFunctions.CreateInlineKeyboard(GetReactionsTexts(reactions), 
-                                                GetReactionsData(reactions));
-                                            sender_to_tg.Put(factory.CreateKeyboardEditingRequest(updateEventArgs.Update.CallbackQuery.Message.Chat.Id, 
-                                                updateEventArgs.Update.CallbackQuery.Message.MessageId,keybpard));
-                                        }
-
-                                        break;
-                                    }
-
-                                    Match TaskMatch = TaskReg.Match(updateEventArgs.Update.CallbackQuery.Data);
-                                    if (TaskMatch.Success && int.TryParse(TaskMatch.Groups[1].Value, out int TaskId))
-                                    {
-                                        dBWorker.task_rejected(TaskId);
-                                        ClearUnderChatMenu(chatId, "Сообщение успешно отменено!");
-                                        SendDefaultMenu(chatId);
+                                        ClearUnderChatMenu(chatId, "Успешно опубликовано!");
+                                        dBWorker.update_task_time(chatId, token, DateTime.UtcNow);
                                         SetMode(chatId);
+                                        Stages.TryRemove(chatId, out int v);
+                                        SendDefaultMenu(chatId);
+                                        break;
+                                    }
+                                case reactionsNo: 
+                                    {
+                                        Stages.AddOrUpdate(chatId, 4, (oldkey, oldvalue) => 4);
+                                        sender_to_tg.Put(factory.CreateMessage(chatId, "Опубликовать пост сейчас или отложить?",
+                                            keyboardMarkup: CreateShedulerQuestion()));
+                                        break;
+                                    }
+                                case reactionsYes:
+                                    {
+                                        CreateUnderChatReactionsMenu(chatId, "Выберите или введите реакции. " +
+                                            "Один символ - один лайк. Если нужно добавить текст введите их в виде [реакция1][реакция2]");
+                                        Stages.AddOrUpdate(chatId, 3, (oldkey, oldvalue) => 3);
+                                        break;
+                                    }
+                                case CreatePostCommand:
+                                    {
+                                        Task.Factory.StartNew(CreatePostCommandButtonReaction, chatId);
+                                        break;
+                                    }
+                                case CreateRePostCommand:
+                                    {
+                                        Task.Factory.StartNew(CreateRePostCommandButtonReaction, chatId);
+                                        break;
+                                    }
+                                case DefferedPostsCommand:
+                                    {
+                                        Mode mode = Mode.DefferedManaging;
+                                        WorkModes.AddOrUpdate(chatId, mode, (oldkey, oldvalue) => mode);
+                                        List<DataBaseWorker.PostingTask> postingTasks = dBWorker.get_future_tasks(token);
+                                        if (postingTasks.Count > 0)
+                                        {
+                                            List<List<string>> texts = new List<List<string>>();
+                                            List<List<string>> values = new List<List<string>>();
+                                            foreach (var tsk in postingTasks)
+                                            {
+                                                string ButtonText = string.Format("{0} {1}", tsk.channel_name, tsk.PublishTime);
+                                                string ReturnedValue = "task_" + tsk.id.ToString();
+                                                texts.Add(new List<string>() { ButtonText });
+                                                values.Add(new List<string>() { ReturnedValue });
+                                            }
+                                            InlineKeyboardMarkup keyboard = CommonFunctions.CreateInlineKeyboard(texts, values);
+                                            sender_to_tg.Put(factory.CreateMessage(chatId, "Выберете отложенное сообщение:", keyboardMarkup: keyboard));
+                                            CreateUnderChatMenu(chatId, "Или отмените действие");
+                                        }
+                                        else
+                                        {
+                                            ClearUnderChatMenu(chatId, "Нет ни одного отложенного сообщения!");
+                                            SendDefaultMenu(chatId);
+                                            SetMode(chatId);
+                                        }
+
+                                        break;
+                                    }
+                                case EditPostsCommand:
+                                    {
+                                        Mode mode = Mode.PostEditing;
+                                        WorkModes.AddOrUpdate(chatId, mode, (oldkey, oldvalue) => mode);
+                                        break;
+                                    }
+                                case AddChannelCommand:
+                                    {
+                                        Task.Factory.StartNew(AddChannelButtonReaction, chatId);
+                                        break;
+                                    }
+                                default:
+                                    {
+                                        if (long.TryParse(updateEventArgs.Update.CallbackQuery.Data, out long channel_id) &&
+                                            WorkModes.TryGetValue(chatId, out Mode currentMode))
+                                        {
+                                            if (currentMode == Mode.PostCreation)
+                                            {
+                                                if (!Stages.TryGetValue((long)chatId, out int st))
+                                                {
+                                                    Stages.AddOrUpdate((long)chatId, 1, (oldkey, oldvalue) => 1);
+                                                    dBWorker.add_task((long)chatId, channel_id, token, Mode.PostCreation.ToString());
+                                                    CreateUnderChatMenu((long)chatId, "Канал выбран! Отправьте боту то, что хотите опубликовать. " +
+                                                        "Это может быть всё, что угодно – текст, фото, альбом, видео, даже стикеры.");
+                                                }
+                                            }
+                                            else if (currentMode == Mode.RePostCreation)
+                                            {
+                                                Stages.AddOrUpdate((long)chatId, 1, (oldkey, oldvalue) => 1);
+                                                dBWorker.add_task((long)chatId, channel_id, token, Mode.RePostCreation.ToString());
+                                                CreateUnderChatMenu((long)chatId, "Канал выбран! Перешлите боту сообщение, которое хотите репостнуть. " +
+                                                    "Это может быть текст, фото, видео, даже стикеры, но не альбом.");
+                                            }
+                                            break;
+                                        }
+                                        Match ReactionMatch = ReactionReg.Match(updateEventArgs.Update.CallbackQuery.Data);
+                                        if (ReactionMatch.Success && int.TryParse(ReactionMatch.Groups[1].Value, out int ReactionId))
+                                        {
+                                            dBWorker.count_reaction(ReactionId, updateEventArgs.Update.CallbackQuery.From.Id);
+                                            var reactions = dBWorker.get_counted_reactions(ReactionId);
+                                            if (reactions != null && reactions.Count > 0)
+                                            {
+                                                InlineKeyboardMarkup keybpard = CommonFunctions.CreateInlineKeyboard(GetReactionsTexts(reactions),
+                                                    GetReactionsData(reactions));
+                                                sender_to_tg.Put(factory.CreateKeyboardEditingRequest(updateEventArgs.Update.CallbackQuery.Message.Chat.Id,
+                                                    updateEventArgs.Update.CallbackQuery.Message.MessageId, keybpard));
+                                            }
+
+                                            break;
+                                        }
+
+                                        Match TaskMatch = TaskReg.Match(updateEventArgs.Update.CallbackQuery.Data);
+                                        if (TaskMatch.Success && int.TryParse(TaskMatch.Groups[1].Value, out int TaskId))
+                                        {
+                                            dBWorker.task_rejected(TaskId);
+                                            ClearUnderChatMenu(chatId, "Сообщение успешно отменено!");
+                                            SendDefaultMenu(chatId);
+                                            SetMode(chatId);
+                                        }
+
+                                        break;
                                     }
 
-                                    break;
-                                }
-                                
+                            }
+                            break;
                         }
-                        break;
-                    }
+                }
             }
+            catch(Exception ex) { logger.Error(ex); }
+
         }
 
         private void AddChannelButtonReaction(object? ChatId)
@@ -424,6 +430,7 @@ namespace DefferedPosting
                                         }
                                     case 5:
                                         {
+                                            logger.Debug("Parsing DateTime: "+ message.Text);
                                             if (DateTime.TryParse(message.Text, out DateTime dt))
                                             {
                                                 dBWorker.update_task_time(message.Chat.Id, token, dt);

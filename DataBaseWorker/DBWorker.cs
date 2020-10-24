@@ -802,6 +802,8 @@ namespace DataBaseWorker
 
         public void add_task(long source_chat_id, long target_chat_id, string bot_token, string task_type)
         {
+            logger.Info(string.Format("add_task actio. Parameters: source_chat_id {0}, target_chat_id {1}, bot_token {2}, task_type {3}",
+                source_chat_id,target_chat_id,bot_token,task_type));
             lock (ReadLocker)
             {
                 _add_task.Parameters["source_chat_id"].Value = source_chat_id;

@@ -19,12 +19,12 @@ insert into public.task_statuses (status_name) VALUES ('rejected');
 
 alter table public.chats add foreign key (bot_id) references public.bots (bot_id);
 alter table public.chats drop constraint chats_pkey;
-
 alter table public.chats add primary key (chat_id,bot_id);
 
-alter table public.messages add FOREIGN KEY (user_id) references public.users (user_id);
+--alter table public.messages add FOREIGN KEY (user_id) references public.users (user_id);
 alter table public.messages drop constraint messages_user_id_fkey;
-alter table public.messages alter column user_id set default null;
+alter table public.messages alter column user_id DROP NOT NULL ;
+
 
 
 create table public.tasks (
@@ -120,15 +120,14 @@ $$
     end;
 $$ LANGUAGE plpgsql;
 
-
+select add_task(227272610, -1001150699291,'1274761027:AAE-cWdKDmG0BQ5RusboZi1ECglRqU4n6As','PostCreation');
 
 CREATE OR REPLACE FUNCTION get_bot_id(bot_token text) RETURNS int as
 $$
     declare temp_bot_id int;
     begin
         temp_bot_id =(select public.bots.bot_id from public.bots where public.bots.tg_bot_token=bot_token);
-        if (count(temp_bot_id))=0 then
-            insert into public.bots (tg_bot_token) values (bot_token);
+        if count(temp_bot_id)=0 then
             insert into public.bots (tg_bot_token,bot_user_id ) values (bot_token, (regexp_matches(bot_token,'^(\d+):'))[1]::bigint);
             temp_bot_id = get_bot_id(bot_token);
         end if;
@@ -138,33 +137,6 @@ $$ LANGUAGE plpgsql;
 
 drop function add_message(_tg_timestamp timestamp,_client_timestamp timestamp,_message_id bigint, _chat_id bigint, _user_id bigint,_in_reply_of bigint,
                                         bot_token text, _text text, _media_id text,_media_group_id text,_is_output bool, _caption text,_pair_chat_id bigint,_pair_message_id bigint);
-
-CREATE OR REPLACE FUNCTION add_message(_tg_timestamp timestamp,_client_timestamp timestamp,_message_id bigint, _chat_id bigint, _user_id bigint,_in_reply_of bigint,
-                                        bot_token text, _text text, _media_id text,_media_group_id text,_is_output bool, _caption text,_pair_chat_id bigint,_pair_message_id bigint,
-                                        _buttons text[]) RETURNS void as
-$$
-    declare
-        _bot_id int;
-        _message_db_id bigint;
-        like_id int;
-    begin
-        _bot_id=get_bot_id(bot_token);
-        insert into public.messages (tg_timestamp,client_timestamp,message_id, chat_id, user_id, bot_id, text, is_output, caption,
-                                         in_reply_of, media_id,media_group_id,pair_message_chat_id,pair_message_id)
-                values (_tg_timestamp,_client_timestamp,_message_id, _chat_id, _user_id, _bot_id, _text, _is_output, _caption,
-                                         _in_reply_of, _media_id,_media_group_id,_pair_chat_id,_pair_message_id) returning message_db_id into _message_db_id;
-        if _buttons is not null then
-            for i in 0..array_length(_buttons,1) loop
-                    insert into public.buttons (callback_data, message_id)  values (_buttons[i],_message_db_id);
-                    like_id = (regexp_matches(_buttons[i],'^like_(\d+)$'))[1]::int;
-                    if like_id is not null then
-                        update public.reactions set message_id=_message_db_id where reaction_id=like_id;
-                    end if;
-                end loop;
-        end if;
-    end;
-$$ LANGUAGE plpgsql;
-
 
 CREATE OR REPLACE FUNCTION add_task(source_chat_id bigint,target_chat_id bigint,bot_token text,_task_type text) RETURNS void as
 $$
@@ -202,7 +174,7 @@ CREATE OR REPLACE FUNCTION get_active_tasks(bot_token text ) RETURNS TABLE (_sou
 $$
     begin
         RETURN QUERY
-            select source_chat,message_id,task_type,target_chat,messages.text,messages.caption,messages.media_id,messages.media_group_id,tasks.task_id, tasks.action_time,c.name from tasks inner join messages on tasks.source_message_id=messages.message_db_id inner join chats c on tasks.source_chat = c.chat_id
+            select  distinct  source_chat,message_id,task_type,target_chat,messages.text,messages.caption,messages.media_id,messages.media_group_id,tasks.task_id, tasks.action_time,c.name from tasks inner join messages on tasks.source_message_id=messages.message_db_id inner join chats c on tasks.source_chat = c.chat_id
             where tasks.bot_id=get_bot_id(bot_token) and action_time<CURRENT_TIMESTAMP and task_status<3;
     end;
 $$ LANGUAGE plpgsql;
@@ -221,7 +193,7 @@ CREATE OR REPLACE FUNCTION get_future_tasks(bot_token text ) RETURNS TABLE (_sou
 $$
     begin
         RETURN QUERY
-            select source_chat,message_id,task_type,target_chat,messages.text,messages.caption,messages.media_id,messages.media_group_id,tasks.task_id, tasks.action_time,c.name from tasks inner join messages on tasks.source_message_id=messages.message_db_id inner join chats c on tasks.source_chat = c.chat_id
+            select distinct source_chat,message_id,task_type,target_chat,messages.text,messages.caption,messages.media_id,messages.media_group_id,tasks.task_id, tasks.action_time,c.name from tasks inner join messages on tasks.source_message_id=messages.message_db_id inner join chats c on tasks.source_chat = c.chat_id
             where tasks.bot_id=get_bot_id(bot_token) and task_status<3;
     end;
 $$ LANGUAGE plpgsql;

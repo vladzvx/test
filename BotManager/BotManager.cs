@@ -81,8 +81,8 @@ namespace BotManager
 
         private void AddBot(string token, Mode mode)
         {
-            dBWorker.get_bot_id(token);
             logger.Info("Creating new bot. token: " + token);
+            dBWorker.get_bot_id(token);
             if (this.bots.FindIndex(bot => bot.token == token)<0)
             {
                 BaseBot bot=null;
@@ -129,7 +129,7 @@ namespace BotManager
                                     }
                                 case FeedBack:
                                     {
-                                        mods.AddOrUpdate(chatId, Mode.Deffered, (oldKey, oldValue) => Mode.Deffered);
+                                        mods.AddOrUpdate(chatId, Mode.FeedBack, (oldKey, oldValue) => Mode.FeedBack);
                                         break;
                                     }
                             }
@@ -152,32 +152,38 @@ namespace BotManager
 
         public override void PrivateChatProcessing(Message message, ref bool continuation)
         {
-            base.PrivateChatProcessing(message, ref continuation);
-            long chatId = message.Chat.Id;
-            if (message.Text != null && message.Text.ToLower().Equals(CancelCommand.ToLower()))
+            try
             {
-                ClearUnderChatMenu(chatId, "Принято!");
+                base.PrivateChatProcessing(message, ref continuation);
+                long chatId = message.Chat.Id;
+                if (message.Text != null && message.Text.ToLower().Equals(CancelCommand.ToLower()))
+                {
+                    ClearUnderChatMenu(chatId, "Принято!");
+                    SendDefaultMenu(chatId);
+                    mods.TryRemove(chatId, out Mode m);
+                    return;
+                }
+                if (mods.TryGetValue(chatId, out Mode mode))
+                {
+                    Match TokenChecking = TokenParsing.Match(message.Text);
+                    if (TokenChecking.Success)
+                    {
+                        logger.Info("Добавляем бота с токеном " + TokenChecking.Groups[1].Value);
+                        AddBot(TokenChecking.Groups[1].Value, mode);
+                        ClearUnderChatMenu(message.Chat.Id, "Бот успешно создан!");
+                        SendDefaultMenu(message.Chat.Id);
+                        return;
+                    }
+                    else
+                    {
+                        sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Пришлите пожалуйста корректный токен в формате\n\n 1234567:AAAAAAAdsdd"));
+                        return;
+                    }
+                }
                 SendDefaultMenu(chatId);
-                mods.TryRemove(chatId, out Mode m);
-                return;
             }
-            if (mods.TryGetValue(chatId, out Mode mode))
-            {
-                Match TokenChecking = TokenParsing.Match(message.Text);
-                if (TokenChecking.Success)
-                {
-                    AddBot(TokenChecking.Groups[1].Value,mode);
-                    ClearUnderChatMenu(message.Chat.Id, "Бот успешно создан!");
-                    SendDefaultMenu(message.Chat.Id);
-                    return;
-                }
-                else
-                {
-                    sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Пришлите пожалуйста корректный токен в формате\n\n 1234567:AAAAAAAdsdd"));
-                    return;
-                }
-            }
-            SendDefaultMenu(chatId);
+            catch (Exception ex) { logger.Error(ex); }
+
         }
 
         public override bool? ParseStartStopCommands(Message message, ref bool continuation)
