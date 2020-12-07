@@ -349,7 +349,11 @@ namespace BaseTelegramBot
 		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "")
 		{
 			IMessageToSend result;
-			if (message.Photo != null || message.Video != null)
+			if (message.ForwardFrom != null || message.ForwardSenderName != null)
+            {
+				result = factory.CreateMessageForwarding(new ChatId(TargetChatId), message.Chat.Id, message.MessageId);
+            }
+			else if (message.Photo != null || message.Video != null)
 			{
 				if (message.MediaGroupId == null)
 				{
