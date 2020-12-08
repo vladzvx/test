@@ -462,6 +462,25 @@ namespace DefferedPosting
                                                 keyboardMarkup: CreateShedulerQuestion()));
                                             break;
                                         }
+                                    case 2:
+                                        {
+                                            logger.Debug("Parsing DateTime: " + message.Text);
+                                            if (DateTime.TryParse(message.Text, out DateTime dt))
+                                            {
+                                                dBWorker.update_task_time(message.Chat.Id, token, dt);
+                                                ClearUnderChatMenu(message.Chat.Id, string.Format("Создан отложенный пост {0}!", dt));
+                                                SetMode(message.Chat.Id);
+                                                Stages.TryRemove(message.Chat.Id, out int v);
+                                                SendDefaultMenu(message.Chat.Id);
+                                            }
+                                            else
+                                            {
+                                                sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Не получилось распознать время.\n\nОтправьте время публикации в формате, " +
+                                                    " соответствующем текущему времени: " +
+                                                "\n\n"+DateTime.UtcNow.ToString()));
+                                            }
+                                            break;
+                                        }
                                     default:
                                         break;
                                 }
