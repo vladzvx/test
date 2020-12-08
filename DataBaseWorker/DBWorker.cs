@@ -191,6 +191,10 @@ namespace DataBaseWorker
         NpgsqlConnection WriteConnention;
         NpgsqlConnection ReadConnention;
         NpgsqlCommand _get_bot_id;
+        NpgsqlCommand _add_responce;
+        NpgsqlCommand _get_responce;
+        NpgsqlCommand _get_callings;
+        NpgsqlCommand _del_responce;
         NpgsqlCommand _get_messages;
         NpgsqlCommand _get_active_groups;
         NpgsqlCommand _get_media_ids;
@@ -263,6 +267,30 @@ namespace DataBaseWorker
             this._add_task.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._add_task.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
             this._add_task.Parameters.Add(new NpgsqlParameter("_task_type", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._add_responce = ReadConnention.CreateCommand();
+            this._add_responce.CommandType = System.Data.CommandType.StoredProcedure;
+            this._add_responce.CommandText = "add_responce";
+            this._add_responce.Parameters.Add(new NpgsqlParameter("_calling_text", NpgsqlTypes.NpgsqlDbType.Text));
+            this._add_responce.Parameters.Add(new NpgsqlParameter("_mess_text", NpgsqlTypes.NpgsqlDbType.Text));
+            this._add_responce.Parameters.Add(new NpgsqlParameter("token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._get_callings = ReadConnention.CreateCommand();
+            this._get_callings.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_callings.CommandText = "get_callings";
+            this._get_callings.Parameters.Add(new NpgsqlParameter("token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._get_responce = ReadConnention.CreateCommand();
+            this._get_responce.CommandType = System.Data.CommandType.StoredProcedure;
+            this._get_responce.CommandText = "get_responce";
+            this._get_responce.Parameters.Add(new NpgsqlParameter("_calling_text", NpgsqlTypes.NpgsqlDbType.Text));
+            this._get_responce.Parameters.Add(new NpgsqlParameter("token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._del_responce = ReadConnention.CreateCommand();
+            this._del_responce.CommandType = System.Data.CommandType.StoredProcedure;
+            this._del_responce.CommandText = "del_responce";
+            this._del_responce.Parameters.Add(new NpgsqlParameter("_calling_text", NpgsqlTypes.NpgsqlDbType.Text));
+            this._del_responce.Parameters.Add(new NpgsqlParameter("token", NpgsqlTypes.NpgsqlDbType.Text));
 
             this._update_task_time = ReadConnention.CreateCommand();
             this._update_task_time.CommandType = System.Data.CommandType.StoredProcedure;
@@ -498,6 +526,55 @@ namespace DataBaseWorker
                 }
             }
             return result;
+        }
+
+        public string get_greeting(string token)
+        {
+            try
+            {
+                NpgsqlCommand command = ReadConnention.CreateCommand();
+                command.CommandType = System.Data.CommandType.Text;
+                command.CommandText = "select greeting from public.bots where tg_bot_token=@token";
+                command.Parameters.AddWithValue("token", NpgsqlTypes.NpgsqlDbType.Text, token);
+                using (NpgsqlDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            return reader.GetString(0);
+                        }
+                        catch (InvalidCastException) { };
+                        break;
+                    }
+                    reader.Close();
+                }
+                
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex);
+            }
+            return null;
+
+        }
+
+        public void set_greeting(string freeting, string token)
+        {
+            try
+            {
+                NpgsqlCommand command = ReadConnention.CreateCommand();
+                command.CommandType = System.Data.CommandType.Text;
+                command.CommandText = "update public.bots set greeting = @greet where public.bots.tg_bot_token=@token";
+                command.Parameters.AddWithValue("token", NpgsqlTypes.NpgsqlDbType.Text, token);
+                command.Parameters.AddWithValue("greet", NpgsqlTypes.NpgsqlDbType.Text, freeting);
+                command.ExecuteNonQuery();
+            }
+            catch(Exception ex) 
+            {
+                logger.Error(ex);
+            }
+
         }
 
         public List<Tuple<long,string>> get_active_channels(string bot_token)
@@ -990,6 +1067,71 @@ namespace DataBaseWorker
             }
         }
 
+        public void add_responce(string _calling_text, string _mess_text, string token)
+        {
+            lock (ReadLocker)
+            {
+                _add_responce.Parameters["_calling_text"].Value = _calling_text;
+                _add_responce.Parameters["_mess_text"].Value = _mess_text;
+                _add_responce.Parameters["token"].Value = token;
+                _add_responce.ExecuteNonQuery();
+            }
+        }
+
+        public string get_responce(string _calling_text, string token)
+        {
+            _get_responce.Parameters["_calling_text"].Value = _calling_text;
+            _get_responce.Parameters["token"].Value = token;
+            lock (ReadLocker)
+            {
+                using (NpgsqlDataReader reader = _get_responce.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                           return reader.GetString(0);
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return null;
+        }
+
+        public List<string> get_callings(string token)
+        {
+            List<string> res = new List<string>();
+            _get_callings.Parameters["token"].Value = token;
+            lock (ReadLocker)
+            {
+                using (NpgsqlDataReader reader = _get_callings.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            res.Add(reader.GetString(0));
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return res;
+        }
+        public void del_responce(string _calling_text, string token)
+        {
+            lock (ReadLocker)
+            {
+                _del_responce.Parameters["_calling_text"].Value = _calling_text;
+                _del_responce.Parameters["token"].Value = token;
+                _del_responce.ExecuteNonQuery();
+            }
+        }
         public long? get_pair_chat_id(long chat_id,long message_id,string bot_token)
         {
             long? result=null;
@@ -1211,12 +1353,24 @@ namespace DataBaseWorker
 
         }
 
+
+
         public void Connect()
         {
             try
             {
-                WriteConnention.Open();
-                ReadConnention.Open();
+                try
+                {
+                    //WriteConnention.Open();
+                    WriteConnention.OpenAsync().Wait();
+                }
+                catch { }
+                try
+                {
+                    ReadConnention.OpenAsync().Wait();
+                }
+                catch { }
+                
             }
             catch (Exception ex)
             {

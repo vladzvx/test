@@ -38,7 +38,7 @@ namespace BaseTelegramBot
 			}
         }
 
-
+		public List<string> additional_commands = new List<string>();
 		protected const string CancelCommand = "Отмена";
 		protected object locker = new object();
 		protected NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
@@ -88,6 +88,7 @@ namespace BaseTelegramBot
 				dBWorker = new DBWorker(DBConnectionString);
 				factory = new WrapperFactory(botClient, dBWorker, token);
 				EventsInit();
+
 			}
             catch (Exception ex)
             {
@@ -123,6 +124,9 @@ namespace BaseTelegramBot
 				me = meWaiting.Result;
 				dBWorker.add_user(DateTime.UtcNow, botClient.BotId, token, me.Username);
 				botClient.StartReceiving();
+				PrivateChatGreeting = dBWorker.get_greeting(token);
+				additional_commands = dBWorker.get_callings(token);
+				PrivateChatGreeting = PrivateChatGreeting == null ? "Добрый день!": PrivateChatGreeting;
 			}
 			catch (Exception ex)
             {
@@ -275,6 +279,12 @@ namespace BaseTelegramBot
 			bool? is_alive = ParseStartStopCommands(message, ref continuation);
 			ParseHelpCommand(message, ref continuation);
 			add_chat(message.Chat, message.From, is_alive);
+			if (additional_commands.Contains(message.Text))
+			{
+				string resp_text = dBWorker.get_responce(message.Text, token);
+				sender_to_tg.Put(factory.CreateMessage(message.From.Id, resp_text, keyboardMarkup: CreateUnderMessageMenu()));
+				continuation = false;
+			}
 		}
 		public virtual bool? ParseStartStopCommands(Message message, ref bool continuation)
         {
@@ -286,8 +296,11 @@ namespace BaseTelegramBot
 				{
 					is_alive = true;
 					continuation = false;
-					if (PrivateChatGreeting!=null&&!PrivateChatGreeting.Equals(string.Empty))
-						sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), PrivateChatGreeting));
+					if (PrivateChatGreeting != null && !PrivateChatGreeting.Equals(string.Empty))
+                    {
+						sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), PrivateChatGreeting,keyboardMarkup: CreateUnderMessageMenu()));
+					}
+						
 				}
 				else if (StopCommands.Contains(text))
 				{
@@ -333,6 +346,19 @@ namespace BaseTelegramBot
 			sender_to_tg.Put(factory.CreateMessage(chatid, text, keyboardMarkup: rmu));
 		}
 
+		public ReplyKeyboardMarkup CreateUnderMessageMenu()
+		{
+			if (additional_commands == null || additional_commands.Count == 0) return null;
+			var rmu = new ReplyKeyboardMarkup();
+			rmu.ResizeKeyboard = true;
+			var temp = new List<List<KeyboardButton>>();
+			foreach (var com in additional_commands)
+            {
+				temp.Add(new List<KeyboardButton> { new KeyboardButton(com) });
+			}
+			rmu.Keyboard = temp;
+			return rmu;
+		}
 		public void ClearUnderChatMenu(long chatid, string text)
 		{
 			var rmr = new ReplyKeyboardRemove();
@@ -346,13 +372,14 @@ namespace BaseTelegramBot
 				PrivateChatGreeting, keyboardMarkup: CommonFunctions.CreateInlineKeyboard(this.MainMenuDescription)));
 		}
 
-		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "")
+		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "",IReplyMarkup keyb=null)
 		{
 			IMessageToSend result;
-			if (message.ForwardFrom != null || message.ForwardSenderName != null)
+			if (message.ForwardFrom != null || message.ForwardSenderName != null || message.ForwardFromChat != null || message.ForwardDate != null)
             {
-				result = factory.CreateMessageForwarding(new ChatId(TargetChatId), message.Chat.Id, message.MessageId);
-            }
+				sender_to_tg.Put(factory.CreateMessageForwarding(new ChatId(TargetChatId), message.Chat.Id, message.MessageId));
+				result = factory.CreateMessage(new ChatId(TargetChatId), Appendix);
+			}
 			else if (message.Photo != null || message.Video != null)
 			{
 				if (message.MediaGroupId == null)
@@ -384,7 +411,8 @@ namespace BaseTelegramBot
 			}
             else
             {
-				result = factory.CreateMessage(new ChatId(TargetChatId), CommonFunctions.TextFormatingRecovering(message.Entities, message.Text) + Appendix);
+				result = factory.CreateMessage(new ChatId(TargetChatId), CommonFunctions.TextFormatingRecovering(message.Entities, message.Text) + Appendix,
+					keyboardMarkup: keyb);
 			}
 			return result;
 

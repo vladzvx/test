@@ -15,6 +15,7 @@ namespace FeedbackBot
 {
     public class FeedBackBot : BaseBot
     {
+        
         private enum commands
         {
             ban,
@@ -25,7 +26,8 @@ namespace FeedbackBot
 
         public FeedBackBot(string token, string DBConnectionString) : base(token, DBConnectionString)
         {
-            PrivateChatGreeting = "Добрый день! Напишите боту сообщение и мы его прочтем.";
+            
+            
             SupportedCommands = new List<BotCommand>()
             {
                 new BotCommand(@"/ban","^/ban$","Ответьте командой /ban на сообщение, присланное ботом, чтобы заблокировать передачу сообщений от пользователя"),
@@ -35,11 +37,14 @@ namespace FeedbackBot
                 " чтобы присвоить какую-либо группу написавшему пользователю."),
                 new BotCommand("/viewgroups", @"^/viewgroups$", "Отправьте команду вида /viewgroups" +
                 " чтобы посмотреть все созданные группы"),
-                new BotCommand("/push", @"^/push$", "Отправьте команду вида /push или \"/push политота\" в ответе на любое сообщение, чтобы разослать его всем членам группы." +
-                " чтобы посмотреть все созданные группы"),
-                new BotCommand("/push", @"^/push (.+)$", "Отправьте команду вида /push или \"/push политота\" в ответе на любое сообщение, чтобы разослать его всем членам группы." +
-                " чтобы посмотреть все созданные группы")
+                new BotCommand("/push", @"^/push$", "Отправьте команду вида /push в ответе на любое сообщение, чтобы разослать его всем писавшим в бота, невключенным в группы."),
+                new BotCommand("/push", @"^/push (.+)$", "Отправьте команду вида \"/push политота\" в ответе на любое сообщение, чтобы разослать его всем членам группы \"политота\"."),
+                new BotCommand("/addresponce", @"^/addresponce (.+)$", "Отправьте команду вида \"/addresponce о нас\" в ответе на любое сообщение. Это добавит всем новым пользователям" +
+                " кнопку с текстом \"о нас\". При нажатии на нее пользователю будет послан текст сообщения, которое было выбрано вами. Можно добавлять неограниченное количество кнопок." +
+                " Для удаления кнопки используйте команду вида \"/delresponce о нас\"")
             };
+            
+            
         }
 
         public override void OnMessageReceivedAction(Task<bool> task, object? state)
@@ -56,7 +61,7 @@ namespace FeedbackBot
                         long? targer = dBWorker.get_pair_chat_id(inReplyOf.Chat.Id, inReplyOf.MessageId, token);
                         if (targer != null)
                         {
-                            IMessageToSend MyMess = RecreateMessage(message, (long)targer);
+                            IMessageToSend MyMess = RecreateMessage(message, (long)targer,keyb: CreateUnderMessageMenu());
                             sender_to_tg.Put(MyMess);
                         }
                             
@@ -73,7 +78,6 @@ namespace FeedbackBot
                             MyMess.AddLinkedMessage(message);
                         sender_to_tg.Put(MyMess);
                     }
-                       
                 }
             }
         }
@@ -123,6 +127,25 @@ namespace FeedbackBot
             if (match.Success)
             {
                 PrivateChatGreeting = match.Groups[1].Value;
+                dBWorker.set_greeting(PrivateChatGreeting,token);
+                continuation = false;
+            }
+
+            reg = new Regex(@"^/addresponce (.+)$");
+            match = reg.Match(message.Text);
+            if (match.Success&& message.ReplyToMessage!=null)
+            {
+                dBWorker.add_responce(match.Groups[1].Value, message.ReplyToMessage.Text, token);
+                additional_commands = dBWorker.get_callings(token);
+                continuation = false;
+            }
+
+            reg = new Regex(@"^/delresponce (.+)$");
+            match = reg.Match(message.Text);
+            if (match.Success)
+            {
+                dBWorker.del_responce(match.Groups[1].Value, token);
+                additional_commands = dBWorker.get_callings(token);
                 continuation = false;
             }
 
@@ -209,6 +232,7 @@ namespace FeedbackBot
         {
             base.PrivateChatProcessing(message, ref continuation);
             continuation = continuation && !dBWorker.check_user_ban(message.From.Id, message.Chat.Id, token);
+
         }
     }
 }
