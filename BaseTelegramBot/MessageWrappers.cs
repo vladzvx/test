@@ -94,6 +94,7 @@ namespace BaseTelegramBot
         public TelegramBotClient client;
         internal CancellationToken cancellation = default;
         internal bool disableNotification = false;
+        internal PostingTask? postingTask=null; 
         public BaseWrapper(Message message, string text, bool reply = false, IReplyMarkup keyboardMarkup =null)
         {
             try
@@ -186,7 +187,15 @@ namespace BaseTelegramBot
                 {
                     this.result = t.Result;
                     logToDB();
-                }    
+                }
+                else
+                {
+                    if (postingTask != null)
+                    {
+                        PostingTask temp = (PostingTask)postingTask;
+                        this.DBWorker.task_not_complited(temp.SourceChat, temp.TargetChannel, bot_token);
+                    }  
+                }
             }
 
         }

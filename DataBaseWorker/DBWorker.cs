@@ -217,6 +217,7 @@ namespace DataBaseWorker
         NpgsqlCommand _add_bot;
         NpgsqlCommand _update_task_time;
         NpgsqlCommand _task_comlited;
+        NpgsqlCommand _task_not_comlited;
         NpgsqlCommand _reject_task;
         NpgsqlCommand _reject_task2;
         NpgsqlCommand _get_active_tasks;
@@ -318,6 +319,13 @@ namespace DataBaseWorker
             this._task_comlited.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_comlited.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_comlited.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+
+            this._task_not_comlited = ReadConnention.CreateCommand();
+            this._task_not_comlited.CommandType = System.Data.CommandType.StoredProcedure;
+            this._task_not_comlited.CommandText = "task_not_complited";
+            this._task_not_comlited.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_not_comlited.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_not_comlited.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
 
             this._get_active_tasks = ReadConnention.CreateCommand();
             this._get_active_tasks.CommandType = System.Data.CommandType.StoredProcedure;
@@ -1045,6 +1053,17 @@ namespace DataBaseWorker
                 _task_comlited.Parameters["target_chat_id"].Value = target_chat_id;
                 _task_comlited.Parameters["bot_token"].Value = bot_token;
                 _task_comlited.ExecuteNonQuery();
+            }
+        }
+
+        public void task_not_complited(long source_chat_id, long target_chat_id, string bot_token)
+        {
+            lock (ReadLocker)
+            {
+                _task_not_comlited.Parameters["source_chat_id"].Value = source_chat_id;
+                _task_not_comlited.Parameters["target_chat_id"].Value = target_chat_id;
+                _task_not_comlited.Parameters["bot_token"].Value = bot_token;
+                _task_not_comlited.ExecuteNonQuery();
             }
         }
 
