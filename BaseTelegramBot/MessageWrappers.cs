@@ -42,7 +42,7 @@ namespace BaseTelegramBot
         public IMessageToSend CreatePhoto(ChatId RecipientId, string media_id, string text, int inReplyOf = 0, 
             InlineKeyboardMarkup keyboardMarkup = null)
         {
-            return ApplySettings(new PhotoWrapper(RecipientId, media_id, text, inReplyOf: inReplyOf));
+            return ApplySettings(new PhotoWrapper(RecipientId, media_id, text, inReplyOf: inReplyOf, keyboardMarkup));
         }
         public IMessageToSend CreateAnimation(ChatId RecipientId, string media_id, string text, int inReplyOf = 0)
         {
