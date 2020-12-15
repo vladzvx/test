@@ -135,7 +135,8 @@ namespace FeedbackBot
             match = reg.Match(message.Text);
             if (match.Success&& message.ReplyToMessage!=null)
             {
-                dBWorker.add_responce(match.Groups[1].Value, message.ReplyToMessage.Text, token);
+                dBWorker.add_responce(match.Groups[1].Value,
+                    CommonFunctions.TextFormatingRecovering(message.ReplyToMessage.Entities, message.ReplyToMessage.Text), token);
                 additional_commands = dBWorker.get_callings(token);
                 continuation = false;
             }
