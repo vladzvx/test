@@ -23,7 +23,7 @@ namespace ConsoleApp1
 			dBWorker.Connect();
 			string path = "/root/db.txt";
 			//string path = @"C:\work\test1.txt";
-			int tran_size = 30000;
+			int tran_size = 50000;
 			ConcurrentQueue<data> q = new ConcurrentQueue<data>(); 
 			Random end = new Random();
 			Task t1 = 	Task.Factory.StartNew(() => {
@@ -46,11 +46,10 @@ namespace ConsoleApp1
 			});
 			Thread.Sleep(100);
 			Task t2 =  Task.Factory.StartNew(() => {
-
+				int total = 0;
 				while (!t1.IsCompleted&& !q.IsEmpty)
                 {
 					Thread.Sleep(100);
-					int total = 0;
 					using (NpgsqlTransaction transaction = dBWorker.WriteConnention.BeginTransaction())
                     {
 						int count = 0;
