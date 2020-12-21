@@ -22,6 +22,8 @@ namespace ConsoleApp1
 			DBWorker dBWorker = new DBWorker("User ID=postgres;Password=qw12cv90;Host=localhost;Port=5432;Database=bot_manager_db;Pooling=true");
 			dBWorker.Connect();
 			string path = "/root/db.txt";
+			//string path = @"C:\work\test1.txt";
+			int tran_size = 30000;
 			ConcurrentQueue<data> q = new ConcurrentQueue<data>(); 
 			Random end = new Random();
 			Task t1 = 	Task.Factory.StartNew(() => {
@@ -36,23 +38,26 @@ namespace ConsoleApp1
 						{
 							q.Enqueue(new data() { id = id, phone = phone });
 						}
+						while (q.Count > 2 * tran_size)
+							Thread.Sleep(100);
 					}
 					
 				}
 			});
-
+			Thread.Sleep(100);
 			Task t2 =  Task.Factory.StartNew(() => {
 
 				while (!t1.IsCompleted&& !q.IsEmpty)
                 {
+					Thread.Sleep(100);
 					int total = 0;
 					using (NpgsqlTransaction transaction = dBWorker.WriteConnention.BeginTransaction())
                     {
 						int count = 0;
-						while (count < 30000 && q.TryDequeue(out data d))
+						while (count < tran_size && q.TryDequeue(out data d))
 						{
-							dBWorker._add_phone.Parameters["user_id"].Value = d.id;
-							dBWorker._add_phone.Parameters["phone"].Value = d.phone;
+							dBWorker._add_phone.Parameters["_user_id"].Value = d.id;
+							dBWorker._add_phone.Parameters["_phone"].Value = d.phone;
 							dBWorker._add_phone.ExecuteNonQuery();
 							count++;
 						}
