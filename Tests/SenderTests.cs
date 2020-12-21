@@ -204,6 +204,7 @@ namespace SenderTests
         private int SendingDelay;
         #endregion
 
+        
         public static void InfinityMessageCreation()
         {
 
@@ -293,6 +294,11 @@ namespace SenderTests
         public void AddLinkedMessage(object message)
         {
             
+        }
+
+        public void AddDelay(int? delay)
+        {
+           
         }
     }
 }

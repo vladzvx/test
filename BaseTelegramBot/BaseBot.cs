@@ -372,7 +372,7 @@ namespace BaseTelegramBot
 				PrivateChatGreeting, keyboardMarkup: CommonFunctions.CreateInlineKeyboard(this.MainMenuDescription)));
 		}
 
-		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "",IReplyMarkup keyb=null)
+		public IMessageToSend RecreateMessage(Message message, long TargetChatId, string Appendix = "",IReplyMarkup keyb=null,int? delay = null)
 		{
 			IMessageToSend result;
 			if (message.ForwardFrom != null || message.ForwardSenderName != null || message.ForwardFromChat != null || message.ForwardDate != null)
@@ -414,6 +414,8 @@ namespace BaseTelegramBot
 				result = factory.CreateMessage(new ChatId(TargetChatId), CommonFunctions.TextFormatingRecovering(message.Entities, message.Text) + Appendix,
 					keyboardMarkup: keyb);
 			}
+
+			result.AddDelay(delay);
 			return result;
 
 		}

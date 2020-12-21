@@ -13,7 +13,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataBaseWorker", "DataBaseW
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotManager", "BotManager\BotManager.csproj", "{87C77D34-B815-4296-A8E0-34CF3825A04E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DeferredPostingBot", "DeferredPostingBot\DeferredPostingBot.csproj", "{46612101-8416-4B04-9A6B-994960ADAC37}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeferredPostingBot", "DeferredPostingBot\DeferredPostingBot.csproj", "{46612101-8416-4B04-9A6B-994960ADAC37}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

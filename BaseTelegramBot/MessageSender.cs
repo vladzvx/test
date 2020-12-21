@@ -11,6 +11,7 @@ namespace BaseTelegramBot
     /// </summary>
     public interface IMessageToSend
     {
+        public void AddDelay(int? delay);
         public void Send();
 
         public long GetChatId();

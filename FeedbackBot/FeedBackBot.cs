@@ -73,7 +73,7 @@ namespace FeedbackBot
                     string appendix = "\n\n#id{0}\n<a href =\"tg://user?id={0}\">{1}</a>";
                     foreach (long group_id in groups)
                     {
-                        IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName));
+                        IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName),delay:2000);
                         if (MyMess!=null)
                             MyMess.AddLinkedMessage(message);
                         sender_to_tg.Put(MyMess);
@@ -112,6 +112,11 @@ namespace FeedbackBot
                     if (user_id != null)
                     {
                         dBWorker.ban_user((long)user_id, (long)chat_id, token);
+                        List<long> messages =  dBWorker.get_user_messages(inReplyOf.MessageId, inReplyOf.Chat.Id, token);
+                        foreach (long mes in messages)
+                        {
+                            sender_to_tg.Put(factory.CreateDeleting(inReplyOf.Chat.Id, mes));
+                        }
                     }
                     continuation = false;
                 }

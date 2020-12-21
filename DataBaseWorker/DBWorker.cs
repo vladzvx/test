@@ -197,6 +197,7 @@ namespace DataBaseWorker
         NpgsqlCommand _del_responce;
         NpgsqlCommand _get_messages;
         NpgsqlCommand _get_active_groups;
+        NpgsqlCommand _get_user_messages;
         NpgsqlCommand _get_media_ids;
         NpgsqlCommand _get_caption;
         NpgsqlCommand _add_user;
@@ -411,6 +412,15 @@ namespace DataBaseWorker
             this._get_active_groups = ReadConnention.CreateCommand();
             this._get_active_groups.CommandType = System.Data.CommandType.Text;
             this._get_active_groups.CommandText = "select chat_id from public.chats where is_group=true and is_active=true;";
+
+            this._get_user_messages = ReadConnention.CreateCommand();
+            this._get_user_messages.CommandType = System.Data.CommandType.Text;
+            this._get_user_messages.CommandText = "select message_id from public.messages where bot_id = get_bot_id(@token) and pair_message_chat_id = (select distinct pair_message_chat_id from messages where chat_id =@chat_id and message_id=@mess_id)";
+            this._get_user_messages.Parameters.Add("token", NpgsqlTypes.NpgsqlDbType.Text);
+            this._get_user_messages.Parameters.Add("chat_id", NpgsqlTypes.NpgsqlDbType.Bigint);
+            this._get_user_messages.Parameters.Add("mess_id", NpgsqlTypes.NpgsqlDbType.Bigint);
+
+
 
             this._get_media_ids = ReadConnention.CreateCommand();
             this._get_media_ids.CommandType = System.Data.CommandType.Text;
@@ -854,6 +864,30 @@ namespace DataBaseWorker
                             ForReturn.Add(reader.GetInt64(0));
                         }
                         catch (System.InvalidCastException) { }                       
+                    }
+                    reader.Close();
+                }
+            }
+            return ForReturn;
+        }
+
+        public List<long> get_user_messages(long mess_id, long chat_id,string token)
+        {
+            List<long> ForReturn = new List<long>();
+            lock (ReadLocker)
+            {
+                _get_user_messages.Parameters["token"].Value=token;
+                _get_user_messages.Parameters["mess_id"].Value= mess_id;
+                _get_user_messages.Parameters["chat_id"].Value= chat_id;
+                using (NpgsqlDataReader reader = _get_user_messages.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            ForReturn.Add(reader.GetInt64(0));
+                        }
+                        catch (System.InvalidCastException) { }
                     }
                     reader.Close();
                 }

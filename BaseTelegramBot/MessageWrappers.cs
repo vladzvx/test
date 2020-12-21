@@ -19,7 +19,8 @@ namespace BaseTelegramBot
         private TelegramBotClient client;
         private DBWorker dBWorker;
         private string bot_token;
-        public WrapperFactory(TelegramBotClient client, DBWorker dBWorker,string bot_token)
+        public int? delay;
+        public WrapperFactory(TelegramBotClient client, DBWorker dBWorker,string bot_token,int? delay =0)
         {
             this.client = client;
             this.dBWorker = dBWorker;
@@ -31,6 +32,7 @@ namespace BaseTelegramBot
             wrapper.logger = this.logger;
             wrapper.bot_token = this.bot_token;
             wrapper.DBWorker = this.dBWorker;
+            if (delay != null) wrapper.delay = (int)delay;
             return wrapper;
         }
         public IMessageToSend CreateAlbum(ChatId RecipientId, List<string> media_ids, string text, int inReplyOf = 0,
@@ -63,6 +65,11 @@ namespace BaseTelegramBot
         public IMessageToSend CreateMessage(ChatId RecipientId, string text, int inReplyOf = 0, IReplyMarkup keyboardMarkup = null)
         {
             return ApplySettings(new BaseWrapper(RecipientId, text, inReplyOf, keyboardMarkup));
+        }
+
+        public IMessageToSend CreateDeleting(long chatid, long messId)
+        {
+            return ApplySettings(new DeleteWrapper(chatid, messId));
         }
         public IMessageToSend CreateMessageForwarding(ChatId To, ChatId From, int Id)
         {
@@ -114,6 +121,13 @@ namespace BaseTelegramBot
             }
 
         }
+
+        public BaseWrapper()
+        {
+
+        }
+
+
         public BaseWrapper(long recip, string text, int inReplyOf = 0, IReplyMarkup keyboardMarkup = null)
         {
             try
@@ -144,6 +158,15 @@ namespace BaseTelegramBot
             {
 
             }
+        }
+        public void AddDelay(int? delay)
+        {
+            if (delay != null)
+            {
+                lock(locker)
+                    this.delay = (int)delay;
+            }
+            
         }
         public bool isFinished()
         {
@@ -219,6 +242,22 @@ namespace BaseTelegramBot
         }
     }
 
+    class DeleteWrapper:BaseWrapper
+    {
+        long mess_id;
+        public DeleteWrapper(long chat_id, long message_id) :base()
+        {
+            this.ChatID = new ChatId(chat_id);// mess.Chat.Id;
+            this._ChatID = chat_id;// mess.Chat.Id;
+            this.mess_id = message_id;
+        }
+
+        public override void Send()
+        {
+            Task SendingTask = this.client.DeleteMessageAsync(ChatID, (int)mess_id);
+            SendingTask.ContinueWith(setFinished);
+        }
+    }
     class KeyboardEditingWrapper : BaseWrapper
     {
         public int message_id;
