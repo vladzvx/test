@@ -73,7 +73,7 @@ namespace FeedbackBot
                     string appendix = "\n\n#id{0}\n<a href =\"tg://user?id={0}\">{1}</a>";
                     foreach (long group_id in groups)
                     {
-                        IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName),delay:12000);
+                        IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName),delay:2000);
                         if (MyMess!=null)
                             MyMess.AddLinkedMessage(message);
                         if (message.From!=null)
