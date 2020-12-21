@@ -70,7 +70,9 @@ namespace FeedbackBot
                 else if (ChatIsPrivate(message))
                 {
                     List<long> groups = dBWorker.get_active_groups();
+                    long? phone = dBWorker.get_phone((long)message.From.Id);
                     string appendix = "\n\n#id{0}\n<a href =\"tg://user?id={0}\">{1}</a>";
+                    if (phone != null) appendix += "\n+" + phone.ToString();
                     foreach (long group_id in groups)
                     {
                         IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName),delay:2000);

@@ -188,9 +188,11 @@ namespace DataBaseWorker
         public string ConnectionString { get; private set; } = string.Empty;
         private NLog.Logger logger = NLog.LogManager.GetCurrentClassLogger();
         private System.Collections.Concurrent.ConcurrentQueue<DataContainer> write_quenue;
-        NpgsqlConnection WriteConnention;
+        public NpgsqlConnection WriteConnention;
         NpgsqlConnection ReadConnention;
         NpgsqlCommand _get_bot_id;
+        public NpgsqlCommand _add_phone;
+        NpgsqlCommand _get_phone;
         NpgsqlCommand _add_responce;
         NpgsqlCommand _get_responce;
         NpgsqlCommand _get_callings;
@@ -408,6 +410,16 @@ namespace DataBaseWorker
             this._get_messages.CommandText = "select text from public.messages where user_id = @_user_id;";
             this._get_messages.Parameters.Add(new NpgsqlParameter("_user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
 
+            this._add_phone = WriteConnention.CreateCommand();
+            this._add_phone.CommandType = System.Data.CommandType.Text;
+            this._add_phone.CommandText = "insert into phones (user_id, phone) values (@_user_id,@_phone);";
+            this._add_phone.Parameters.Add(new NpgsqlParameter("_user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._add_phone.Parameters.Add(new NpgsqlParameter("_phone", NpgsqlTypes.NpgsqlDbType.Bigint));
+
+            this._get_phone = WriteConnention.CreateCommand();
+            this._get_phone.CommandType = System.Data.CommandType.Text;
+            this._get_phone.CommandText = "select phone from public.phones where user_id = @_user_id;";
+            this._get_phone.Parameters.Add(new NpgsqlParameter("_user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
 
             this._get_active_groups = ReadConnention.CreateCommand();
             this._get_active_groups.CommandType = System.Data.CommandType.Text;
@@ -729,7 +741,32 @@ namespace DataBaseWorker
             }
             return result;
         }
-        
+
+        public long? get_phone(long user_id)
+        {
+            long? result = null;
+            lock (ReadLocker)
+            {
+                this._get_phone.Parameters["user_id"].Value = user_id;
+                using (NpgsqlDataReader reader = _get_phone.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result = reader.GetInt64(0);
+                            break;
+                        }
+                        catch (Exception)
+                        {
+                        }
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
         public int get_reaction_id(string text, long chat_id,string token)
         {
             int result = 0;
@@ -813,6 +850,16 @@ namespace DataBaseWorker
                 _add_bot.Parameters["bot_token"].Value = bot_token;
                 _add_bot.Parameters["bot_type"].Value = type;
                 _add_bot.ExecuteNonQuery();
+            }
+        }
+
+        public void add_phone(long user_id,long phone)
+        {
+            lock (WriteLocker)
+            {
+                _add_phone.Parameters["_user_id"].Value = user_id;
+                _add_phone.Parameters["_phone"].Value = phone;
+                _add_phone.ExecuteNonQuery();
             }
         }
 
