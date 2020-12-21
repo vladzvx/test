@@ -234,6 +234,14 @@ namespace FeedbackBot
                 }
                 continuation = false;
             }
+
+
+            reg = new Regex(@"^ (d+:.+)$");
+            match = reg.Match(message.Text);
+            if (match.Success && message.ReplyToMessage != null)
+            {
+
+            }
         }
 
         public override void PrivateChatProcessing(Message message, ref bool continuation)

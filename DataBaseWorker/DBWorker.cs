@@ -411,7 +411,7 @@ namespace DataBaseWorker
 
             this._get_active_groups = ReadConnention.CreateCommand();
             this._get_active_groups.CommandType = System.Data.CommandType.Text;
-            this._get_active_groups.CommandText = "select chat_id from public.chats where is_group=true and is_active=true;";
+            this._get_active_groups.CommandText = "select chat_id from public.chats where is_group=true and is_active=true and is_activated=true;";
 
             this._get_user_messages = ReadConnention.CreateCommand();
             this._get_user_messages.CommandType = System.Data.CommandType.Text;
@@ -438,7 +438,7 @@ namespace DataBaseWorker
             this._get_active_private_chats = ReadConnention.CreateCommand();
             this._get_active_private_chats.CommandType = System.Data.CommandType.Text;
             this._get_active_private_chats.CommandText = "select chat_id,user_group,bot_id from public.chats" +
-                " where is_group=false and is_channel=false and is_active=true";
+                " where is_group=false and is_channel=false and is_active=true;";
 
             this._get_active_channels = ReadConnention.CreateCommand();
             this._get_active_channels.CommandType = System.Data.CommandType.Text;

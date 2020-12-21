@@ -511,3 +511,4 @@ $$
     end;
 $$ LANGUAGE plpgsql;
 
+ALTER table chats add column is_activated bool default false;
