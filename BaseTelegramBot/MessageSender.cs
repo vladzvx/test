@@ -11,8 +11,20 @@ namespace BaseTelegramBot
     /// </summary>
     public interface IMessageToSend
     {
-        public void AddDelay(int? delay);
+        public bool CheckBan()
+        {
+            return false;
+        }
+        public void AddDelay(int? delay)
+        {
+
+        }
         public void Send();
+
+        public void SetSource(long chat_id,long user_id)
+        {
+
+        }
 
         public long GetChatId();
 
@@ -113,6 +125,7 @@ namespace BaseTelegramBot
                             IMessageToSend mess;
                             while (!BufferElementAdded && MaxPriorityQuenue.TryDequeue(out mess))
                             {
+                                if (mess.CheckBan()) continue;
                                 if (ids.FindAll(item => item == mess.GetChatId()).Count < MessagesByPerson)
                                 {
                                     SendingBuffer[iter] = mess;
@@ -127,6 +140,7 @@ namespace BaseTelegramBot
                             }
                             while (!BufferElementAdded && MainQuenue.TryDequeue(out mess))
                             {
+                                if (mess.CheckBan()) continue;
                                 if (ids.FindAll(item => item == mess.GetChatId()).Count < MessagesByPerson)
                                 {
                                     SendingBuffer[iter] = mess;
@@ -142,6 +156,7 @@ namespace BaseTelegramBot
                             }
                             while (!BufferElementAdded && MinPriorityQuenue.TryDequeue(out mess))
                             {
+                                if (mess.CheckBan()) continue;
                                 if (ids.FindAll(item => item == mess.GetChatId()).Count < MessagesByPerson)
                                 {
                                     SendingBuffer[iter] = mess;

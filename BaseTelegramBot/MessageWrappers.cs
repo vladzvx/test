@@ -9,6 +9,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InputFiles;
 using DataBaseWorker;
 using Telegram.Bot.Types.ReplyMarkups;
+using System.Collections.Concurrent;
 
 namespace BaseTelegramBot
 {
@@ -83,6 +84,7 @@ namespace BaseTelegramBot
     }
     class BaseWrapper : IMessageToSend
     {
+        
         public int delay = 0;
         internal object locker = new object();
         public Message linkedMessage;
@@ -96,6 +98,8 @@ namespace BaseTelegramBot
         public Task FinishingTask;
         public long _ChatID;
         internal ChatId ChatID;
+        public long? SourceUser;
+        public long? TargetChat;
         internal string text;
         internal int inReplyOf;
         public TelegramBotClient client;
@@ -173,8 +177,20 @@ namespace BaseTelegramBot
             lock (locker)
                 return finished;
         }
+        public virtual void SetSource(long chat_id,long user_id)
+        {
+            SourceUser = user_id;
+            TargetChat = chat_id;
+        }
+
+        public virtual bool CheckBan()
+        {
+            return (SourceUser != null && TargetChat != null && DBWorker.check_user_ban((int)SourceUser, (long)TargetChat, bot_token));
+        }
         public virtual void Send()
         {
+
+
             SendingTask = client.SendTextMessageAsync(ChatID, text,
                 replyToMessageId: inReplyOf,
                 cancellationToken: cancellation,
@@ -255,7 +271,9 @@ namespace BaseTelegramBot
         public override void Send()
         {
             Task SendingTask = this.client.DeleteMessageAsync(ChatID, (int)mess_id);
-            SendingTask.ContinueWith(setFinished);
+            SendingTask.Wait();
+            SetFinished();
+           // SendingTask.ContinueWith(setFinished);
         }
     }
     class KeyboardEditingWrapper : BaseWrapper
