@@ -416,7 +416,7 @@ namespace DataBaseWorker
             this._add_phone.Parameters.Add(new NpgsqlParameter("_user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._add_phone.Parameters.Add(new NpgsqlParameter("_phone", NpgsqlTypes.NpgsqlDbType.Bigint));
 
-            this._get_phone = WriteConnention.CreateCommand();
+            this._get_phone = ReadConnention.CreateCommand();
             this._get_phone.CommandType = System.Data.CommandType.Text;
             this._get_phone.CommandText = "select phone from public.phones where user_id = @_user_id;";
             this._get_phone.Parameters.Add(new NpgsqlParameter("_user_id", NpgsqlTypes.NpgsqlDbType.Bigint));
@@ -747,7 +747,7 @@ namespace DataBaseWorker
             long? result = null;
             lock (ReadLocker)
             {
-                this._get_phone.Parameters["user_id"].Value = user_id;
+                this._get_phone.Parameters["_user_id"].Value = user_id;
                 using (NpgsqlDataReader reader = _get_phone.ExecuteReader())
                 {
                     while (reader.Read())
