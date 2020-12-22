@@ -1,3 +1,2 @@
-alter table public.phones add column dbid bigserial;
-alter table public.phones drop constraint phones_pkey;
-alter table public.phones add primary key (dbid);
+create index phones_user_id_index on phones (user_id);
+create index phones_phone_index on phones (phone);
