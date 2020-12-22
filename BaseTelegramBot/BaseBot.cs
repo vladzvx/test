@@ -257,6 +257,15 @@ namespace BaseTelegramBot
 			bool result = true;
 			if (message != null)
             {
+				Regex reg = new Regex(@"^/activate (.+)$");
+				Match match = reg.Match(message.Text);
+				if (match.Success && match.Groups[1].Value.Equals(token))
+				{
+					dBWorker.chat_activation(message.Chat.Id, token);
+					result = false;
+				}
+
+
 				if (message.Chat.Type == ChatType.Private)
 				{
 					PrivateChatProcessing(message, ref result);
@@ -265,6 +274,15 @@ namespace BaseTelegramBot
                 {
 					GroupChatProcessing(message, ref result);
 				}
+
+                try
+                {
+
+				}
+                catch { }
+
+
+				
 				return result;
 			}
             else

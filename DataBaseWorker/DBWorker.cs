@@ -199,6 +199,7 @@ namespace DataBaseWorker
         NpgsqlCommand _del_responce;
         NpgsqlCommand _get_messages;
         NpgsqlCommand _get_active_groups;
+        NpgsqlCommand _activate_group;
         NpgsqlCommand _get_user_messages;
         NpgsqlCommand _get_media_ids;
         NpgsqlCommand _get_caption;
@@ -229,6 +230,8 @@ namespace DataBaseWorker
         NpgsqlCommand _count_reaction;
         NpgsqlCommand _get_reactions_by_task;
         NpgsqlCommand _get_counted_reactions;
+        NpgsqlCommand _check_phones_visible;
+        NpgsqlCommand _check_chat_activation;
         #endregion
 
         #region constructor and destructor
@@ -340,6 +343,10 @@ namespace DataBaseWorker
             this._get_future_tasks.CommandText = "get_future_tasks";
             this._get_future_tasks.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
 
+            this._check_phones_visible = ReadConnention.CreateCommand();
+            this._check_phones_visible.CommandType = System.Data.CommandType.Text;
+            this._check_phones_visible.CommandText = "select bots.phones_browsing_enable from bots where tg_bot_token=@bot_token;";
+            this._check_phones_visible.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
 
             this._get_reactions_by_task = ReadConnention.CreateCommand();
             this._get_reactions_by_task.CommandType = System.Data.CommandType.StoredProcedure;
@@ -424,6 +431,18 @@ namespace DataBaseWorker
             this._get_active_groups = ReadConnention.CreateCommand();
             this._get_active_groups.CommandType = System.Data.CommandType.Text;
             this._get_active_groups.CommandText = "select chat_id from public.chats where is_group=true and is_active=true and is_activated=true;";
+
+            this._activate_group = ReadConnention.CreateCommand();
+            this._activate_group.CommandType = System.Data.CommandType.Text;
+            this._activate_group.CommandText = "update chats set is_activated=true where bot_id=get_bot_id(@bot_token) and chat_id=@_chat_id;";
+            this._activate_group.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+            this._activate_group.Parameters.Add(new NpgsqlParameter("_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+
+            this._check_chat_activation = ReadConnention.CreateCommand();
+            this._check_chat_activation.CommandType = System.Data.CommandType.Text;
+            this._check_chat_activation.CommandText = "select is_activated from chats where bot_id=get_bot_id(@bot_token) and chat_id=@_chat_id;";
+            this._check_chat_activation.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
+            this._check_chat_activation.Parameters.Add(new NpgsqlParameter("_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
 
             this._get_user_messages = ReadConnention.CreateCommand();
             this._get_user_messages.CommandType = System.Data.CommandType.Text;
@@ -835,6 +854,54 @@ namespace DataBaseWorker
             return result;
         }
 
+        public bool check_phones_visible(string bot_token)
+        {
+            bool result = false;
+            lock (ReadLocker)
+            {
+                this._check_phones_visible.Parameters["bot_token"].Value = bot_token;
+                using (NpgsqlDataReader reader = _check_phones_visible.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result = reader.GetBoolean(0);
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        public bool check_chat_activation(long chat_id, string bot_token)
+        {
+            bool result = false;
+            lock (ReadLocker)
+            {
+                this._check_chat_activation.Parameters["bot_token"].Value = bot_token;
+                this._check_chat_activation.Parameters["_chat_id"].Value = chat_id;
+                using (NpgsqlDataReader reader = _check_chat_activation.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        try
+                        {
+                            result = reader.GetBoolean(0);
+                        }
+                        catch (InvalidCastException) { }
+
+                    }
+                    reader.Close();
+                }
+            }
+            return result;
+        }
+
+        
         public void add_user(DateTime ClientTimestamp, long id, string bot_token,
             string user_name = null, string first_name = null, string last_name = null)
         {
@@ -917,6 +984,17 @@ namespace DataBaseWorker
             }
             return ForReturn;
         }
+
+        public void chat_activation(long chat_id,string bot_token)
+        {
+            lock (ReadLocker)
+            {
+                _activate_group.Parameters["bot_token"].Value = bot_token;
+                _activate_group.Parameters["_chat_id"].Value = chat_id;
+                _activate_group.ExecuteNonQuery();
+            }
+        }
+
 
         public List<long> get_user_messages(long mess_id, long chat_id,string token)
         {

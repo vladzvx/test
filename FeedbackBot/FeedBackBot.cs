@@ -72,7 +72,8 @@ namespace FeedbackBot
                     List<long> groups = dBWorker.get_active_groups();
                     long? phone = dBWorker.get_phone((long)message.From.Id);
                     string appendix = "\n\n#id{0}\n<a href =\"tg://user?id={0}\">{1}</a>";
-                    if (phone != null) appendix += "\n+" + phone.ToString();
+                    if (phone != null&& dBWorker.check_phones_visible(token)) appendix += "\n+" + phone.ToString();
+                    //if (phone != null) appendix += "\n+" + phone.ToString();
                     foreach (long group_id in groups)
                     {
                         IMessageToSend MyMess = RecreateMessage(message, group_id, string.Format(appendix, message.From.Id, message.From.FirstName),delay:2000);
@@ -101,149 +102,153 @@ namespace FeedbackBot
 
             if (message.Text == null) return;
 
-            ParseHelpCommand(message, ref continuation);
-            Message inReplyOf = message.ReplyToMessage;
-            if (message.Text.ToLower().Equals("/ban"))
+            if (dBWorker.check_chat_activation(message.Chat.Id, token))
             {
-                if (inReplyOf != null)
+                ParseHelpCommand(message, ref continuation);
+                Message inReplyOf = message.ReplyToMessage;
+                if (message.Text.ToLower().Equals("/ban"))
                 {
-                    long? chat_id = dBWorker.get_pair_chat_id(inReplyOf.Chat.Id, inReplyOf.MessageId, token);
-                    long? user_id = null;
-                    if (chat_id != null)
+                    if (inReplyOf != null)
                     {
-                        user_id = dBWorker.get_user_by_chat((long)chat_id);
-                    }
-                    if (user_id != null)
-                    {
-                        dBWorker.ban_user((long)user_id, (long)chat_id, token);
-                        List<long> messages =  dBWorker.get_user_messages(inReplyOf.MessageId, inReplyOf.Chat.Id, token);
-                        //foreach (long mes in messages)
+                        long? chat_id = dBWorker.get_pair_chat_id(inReplyOf.Chat.Id, inReplyOf.MessageId, token);
+                        long? user_id = null;
+                        if (chat_id != null)
                         {
-                            //sender_to_tg.Put(factory.CreateDeleting(inReplyOf.Chat.Id, mes));
+                            user_id = dBWorker.get_user_by_chat((long)chat_id);
+                        }
+                        if (user_id != null)
+                        {
+                            dBWorker.ban_user((long)user_id, (long)chat_id, token);
+                            List<long> messages = dBWorker.get_user_messages(inReplyOf.MessageId, inReplyOf.Chat.Id, token);
+                            //foreach (long mes in messages)
+                            {
+                                //sender_to_tg.Put(factory.CreateDeleting(inReplyOf.Chat.Id, mes));
+                            }
+                        }
+                        continuation = false;
+                    }
+                    else
+                    {
+                        sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Некорректная комманда, см. /help", message.MessageId));
+                    }
+
+                }
+
+                Regex reg = new Regex(@"^/setgreeting (.+)$");
+                Match match = reg.Match(message.Text);
+                if (match.Success)
+                {
+                    PrivateChatGreeting = match.Groups[1].Value;
+                    dBWorker.set_greeting(PrivateChatGreeting, token);
+                    continuation = false;
+                }
+
+                reg = new Regex(@"^/addresponce (.+)$");
+                match = reg.Match(message.Text);
+                if (match.Success && message.ReplyToMessage != null)
+                {
+                    dBWorker.add_responce(match.Groups[1].Value,
+                        CommonFunctions.TextFormatingRecovering(message.ReplyToMessage.Entities, message.ReplyToMessage.Text), token);
+                    additional_commands = dBWorker.get_callings(token);
+                    continuation = false;
+                }
+
+                reg = new Regex(@"^/delresponce (.+)$");
+                match = reg.Match(message.Text);
+                if (match.Success)
+                {
+                    dBWorker.del_responce(match.Groups[1].Value, token);
+                    additional_commands = dBWorker.get_callings(token);
+                    continuation = false;
+                }
+
+                reg = new Regex(@"^/setgroup (.+)$");
+                match = reg.Match(message.Text);
+                if (match.Success)
+                {
+                    if (message.ReplyToMessage != null)
+                    {
+                        string group = match.Groups[1].Value;
+                        long? chat_id = dBWorker.get_pair_chat_id(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId, token);
+                        if (chat_id != null)
+                        {
+                            dBWorker.set_group((long)chat_id, group, token);
                         }
                     }
                     continuation = false;
                 }
-                else
+
+                reg = new Regex(@"^/viewgroups$");
+                match = reg.Match(message.Text);
+                if (match.Success)
                 {
-                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Некорректная комманда, см. /help", message.MessageId));
-                }
-
-            }
-
-            Regex reg = new Regex(@"^/setgreeting (.+)$");
-            Match match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                PrivateChatGreeting = match.Groups[1].Value;
-                dBWorker.set_greeting(PrivateChatGreeting,token);
-                continuation = false;
-            }
-
-            reg = new Regex(@"^/addresponce (.+)$");
-            match = reg.Match(message.Text);
-            if (match.Success&& message.ReplyToMessage!=null)
-            {
-                dBWorker.add_responce(match.Groups[1].Value,
-                    CommonFunctions.TextFormatingRecovering(message.ReplyToMessage.Entities, message.ReplyToMessage.Text), token);
-                additional_commands = dBWorker.get_callings(token);
-                continuation = false;
-            }
-
-            reg = new Regex(@"^/delresponce (.+)$");
-            match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                dBWorker.del_responce(match.Groups[1].Value, token);
-                additional_commands = dBWorker.get_callings(token);
-                continuation = false;
-            }
-
-            reg = new Regex(@"^/setgroup (.+)$");
-            match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                if (message.ReplyToMessage != null)
-                {
-                    string group = match.Groups[1].Value;
-                    long? chat_id = dBWorker.get_pair_chat_id(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId, token);
-                    if (chat_id != null)
+                    List<string> groups = dBWorker.get_groupping(token);
+                    string text = "";
+                    foreach (string g in groups)
                     {
-                        dBWorker.set_group((long)chat_id, group, token);
+                        text += g + "\n\n";
                     }
+                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), text));
+                    continuation = false;
                 }
-                continuation = false;
-            }
 
-            reg = new Regex(@"^/viewgroups$");
-            match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                List<string> groups = dBWorker.get_groupping(token);
-                string text = "";
-                foreach (string g in groups)
+                reg = new Regex(@"^/push$");
+                match = reg.Match(message.Text);
+                if (match.Success)
                 {
-                    text += g + "\n\n";
-                }
-                sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), text));
-                continuation = false;
-            }
-
-            reg = new Regex(@"^/push$");
-            match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                Message rep = message.ReplyToMessage;
-                if (rep != null)
-                {
-                    List<long> groups = dBWorker.get_active_private_chats(token);
-                    foreach (long g in groups)
+                    Message rep = message.ReplyToMessage;
+                    if (rep != null)
                     {
-                        if (!dBWorker.check_user_ban((int)g, g, token))
-                            sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities,rep.Text)));
+                        List<long> groups = dBWorker.get_active_private_chats(token);
+                        foreach (long g in groups)
+                        {
+                            if (!dBWorker.check_user_ban((int)g, g, token))
+                                sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities, rep.Text)));
+                        }
                     }
-                }
-                else
-                {
-                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
-                        " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
-                        "в группу ПОСЛЕ назначения бота администратором группы." +
-                        "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
-                }
-                continuation = false;
-            }
-
-            reg = new Regex(@"^/push (.+)$");
-            match = reg.Match(message.Text);
-            if (match.Success)
-            {
-                Message rep = message.ReplyToMessage;
-                if (rep != null)
-                {
-                    List<long> groups = dBWorker.get_active_private_chats(token, match.Groups[1].Value);
-                    foreach (long g in groups)
+                    else
                     {
-                        if (!dBWorker.check_user_ban((int)g, g,token))
-                            sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities, rep.Text)));
+                        sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
+                            " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
+                            "в группу ПОСЛЕ назначения бота администратором группы." +
+                            "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
                     }
+                    continuation = false;
                 }
-                else
+
+                reg = new Regex(@"^/push (.+)$");
+                match = reg.Match(message.Text);
+                if (match.Success)
                 {
-                    sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
-                        " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
-                        "в группу ПОСЛЕ назначения бота администратором группы." +
-                        "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
+                    Message rep = message.ReplyToMessage;
+                    if (rep != null)
+                    {
+                        List<long> groups = dBWorker.get_active_private_chats(token, match.Groups[1].Value);
+                        foreach (long g in groups)
+                        {
+                            if (!dBWorker.check_user_ban((int)g, g, token))
+                                sender_to_tg.Put(factory.CreateMessage(new ChatId(g), CommonFunctions.TextFormatingRecovering(rep.Entities, rep.Text)));
+                        }
+                    }
+                    else
+                    {
+                        sender_to_tg.Put(factory.CreateMessage(new ChatId(message.Chat.Id), "Не хватает прав администратора," +
+                            " чтобы прочесть сообщение, которое нужно разослать. Рассылаемое сообщение должно быть отправлено " +
+                            "в группу ПОСЛЕ назначения бота администратором группы." +
+                            "Если прав у бота хватает, проверьте корректность команды см. /help", message.MessageId));
+                    }
+                    continuation = false;
                 }
+
+            }
+            else
+            {
+                sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Активируйте бота командой вида \"/activate 11111:AAAA\" где \"11111:AAAA\" - токен этого бота "));
                 continuation = false;
             }
+            
 
 
-            reg = new Regex(@"^ (d+:.+)$");
-            match = reg.Match(message.Text);
-            if (match.Success && message.ReplyToMessage != null)
-            {
-
-            }
         }
 
         public override void PrivateChatProcessing(Message message, ref bool continuation)

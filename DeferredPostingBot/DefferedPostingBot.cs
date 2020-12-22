@@ -572,20 +572,29 @@ namespace DefferedPosting
 
         public override void PrivateChatProcessing(Message message, ref bool continuation)
         {
-            if (!WorkModes.TryGetValue(message.Chat.Id, out Mode mode))
-            {
-                WorkModes.AddOrUpdate(message.Chat.Id, Mode.NoMode, (oldkey, oldvalue) => Mode.NoMode);
-            }
             base.PrivateChatProcessing(message, ref continuation);
-            if (message.Text!=null&&message.Text.ToLower().Equals(CancelCommand.ToLower()))
+            if (dBWorker.check_chat_activation(message.Chat.Id, token))
             {
-                continuation = false;
-                dBWorker.task_rejected(message.Chat.Id, token);
-                ClearUnderChatMenu(message.Chat.Id, "Принято!");
-                SetMode(message.Chat.Id);
-                Stages.TryRemove(message.Chat.Id, out int v);
-                SendDefaultMenu(message.Chat.Id);
+                if (!WorkModes.TryGetValue(message.Chat.Id, out Mode mode))
+                {
+                    WorkModes.AddOrUpdate(message.Chat.Id, Mode.NoMode, (oldkey, oldvalue) => Mode.NoMode);
+                }
+                if (message.Text != null && message.Text.ToLower().Equals(CancelCommand.ToLower()))
+                {
+                    continuation = false;
+                    dBWorker.task_rejected(message.Chat.Id, token);
+                    ClearUnderChatMenu(message.Chat.Id, "Принято!");
+                    SetMode(message.Chat.Id);
+                    Stages.TryRemove(message.Chat.Id, out int v);
+                    SendDefaultMenu(message.Chat.Id);
+                }
             }
+            else
+            {
+                sender_to_tg.Put(factory.CreateMessage(message.Chat.Id, "Активируйте бота командой вида \"/activate 11111:AAAA\" где \"11111:AAAA\" - токен этого бота "));
+                continuation = false;
+            }
+
         }
     }
 }
