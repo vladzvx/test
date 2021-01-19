@@ -519,3 +519,6 @@ alter table public.phones add primary key (dbid);
 
 create index phones_user_id_index on phones (user_id);
 create index phones_phone_index on phones (phone);
+
+alter table public.bots add column phones_request_enable bool default true;
+alter table public.bots add column phones_browsing_enable bool default true;

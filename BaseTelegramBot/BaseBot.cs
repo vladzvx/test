@@ -257,13 +257,18 @@ namespace BaseTelegramBot
 			bool result = true;
 			if (message != null)
             {
-				Regex reg = new Regex(@"^/activate (.+)$");
-				Match match = reg.Match(message.Text);
-				if (match.Success && match.Groups[1].Value.Equals(token))
+				if (message.Text != null)
 				{
-					dBWorker.chat_activation(message.Chat.Id, token);
-					result = false;
+					Regex reg = new Regex(@"^/activate (.+)$");
+					Match match = reg.Match(message.Text);
+					if (match.Success && match.Groups[1].Value.Equals(token))
+					{
+						dBWorker.chat_activation(message.Chat.Id, token);
+						result = false;
+					}
+
 				}
+
 
 
 				if (message.Chat.Type == ChatType.Private)
