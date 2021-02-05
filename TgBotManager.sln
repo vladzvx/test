@@ -15,6 +15,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotManager", "BotManager\Bo
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DeferredPostingBot", "DeferredPostingBot\DeferredPostingBot.csproj", "{46612101-8416-4B04-9A6B-994960ADAC37}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WebAccessibleBot", "WebAccessibleBot\WebAccessibleBot.csproj", "{FE30B949-1B44-4DFC-BA18-CAF3CBE891CE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NotificationBot", "NotificationBot\NotificationBot.csproj", "{3D00C0C4-6BA5-4C27-81C5-284EDFCFFDDA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -45,6 +49,14 @@ Global
 		{46612101-8416-4B04-9A6B-994960ADAC37}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{46612101-8416-4B04-9A6B-994960ADAC37}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{46612101-8416-4B04-9A6B-994960ADAC37}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FE30B949-1B44-4DFC-BA18-CAF3CBE891CE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FE30B949-1B44-4DFC-BA18-CAF3CBE891CE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FE30B949-1B44-4DFC-BA18-CAF3CBE891CE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FE30B949-1B44-4DFC-BA18-CAF3CBE891CE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3D00C0C4-6BA5-4C27-81C5-284EDFCFFDDA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3D00C0C4-6BA5-4C27-81C5-284EDFCFFDDA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3D00C0C4-6BA5-4C27-81C5-284EDFCFFDDA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3D00C0C4-6BA5-4C27-81C5-284EDFCFFDDA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

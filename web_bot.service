@@ -1,0 +1,9 @@
+[Unit]
+Description=Bot Manager
+
+[Service]
+Type=simple
+ExecStart=/root/web_bot/WebAccessibleBot
+
+[Install]
+WantedBy=multi-user.target
