@@ -7,7 +7,7 @@ $$
     begin
         bot_uid = (select bots.bot_user_id from bots where bots.bot_id=new.bot_id);
         if not bot_uid=new.user_id  then
-            update public.tasks SET source_message_id=new.message_id
+            update public.tasks SET source_message_id=new.message_db_id
                 where bot_id=new.bot_id and source_chat = new.chat_id and task_status=1 and source_message_id is null;
         end if;
         return null;

@@ -14,6 +14,7 @@ namespace DataBaseWorker
         public long TargetChannel;
         public long SourceChat;
         public long SourceMessageId;
+        public long SourceMessageId2;
         public string TaskType;
         public string text ;
         public string caption ;
@@ -1079,6 +1080,7 @@ namespace DataBaseWorker
                             {
                                 SourceChat = reader.GetInt64(0),
                                 SourceMessageId = reader.GetInt32(1),
+                                SourceMessageId2 = reader.GetInt32(11),
                                 TargetChannel = reader.GetInt64(3),
                                 TaskType = !reader.IsDBNull(2) ? reader.GetString(2) : null,
                                 caption = !reader.IsDBNull(5) ? reader.GetString(5) : null,
@@ -1115,6 +1117,7 @@ namespace DataBaseWorker
                             {
                                 SourceChat = reader.GetInt64(0),
                                 SourceMessageId = reader.GetInt32(1),
+                                SourceMessageId2 = reader.GetInt32(11),
                                 TargetChannel = reader.GetInt64(3),
                                 TaskType = !reader.IsDBNull(2) ? reader.GetString(2) : null,
                                 caption = !reader.IsDBNull(5) ? reader.GetString(5) : null,

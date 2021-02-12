@@ -158,7 +158,7 @@ namespace DefferedPosting
                     }
                     else if (Mode.RePostCreation.Equals(mode))
                     {
-                        sender_to_tg.Put(factory.CreateMessageForwarding(new ChatId(task.TargetChannel),new ChatId(task.SourceChat),(int)task.SourceMessageId));
+                        sender_to_tg.Put(factory.CreateMessageForwarding(new ChatId(task.TargetChannel),new ChatId(task.SourceChat),(int)task.SourceMessageId2));
                         dBWorker.task_complited(task.SourceChat, task.SourceMessageId, task.TargetChannel, token);
                         SetMode(task.SourceChat);
                     }
