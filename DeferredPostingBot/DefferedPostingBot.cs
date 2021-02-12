@@ -468,7 +468,7 @@ namespace DefferedPosting
                                             if (DateTime.TryParse(message.Text, out DateTime dt))
                                             {
                                                 dBWorker.update_task_time(message.Chat.Id, token, dt);
-                                                ClearUnderChatMenu(message.Chat.Id, string.Format("Создан отложенный пост {0}!", dt));
+                                                ClearUnderChatMenu(message.Chat.Id, string.Format("Создан отложенный репост {0}!", dt));
                                                 SetMode(message.Chat.Id);
                                                 Stages.TryRemove(message.Chat.Id, out int v);
                                                 SendDefaultMenu(message.Chat.Id);
