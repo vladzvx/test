@@ -232,7 +232,7 @@ namespace BaseTelegramBot
                     if (postingTask != null)
                     {
                         PostingTask temp = (PostingTask)postingTask;
-                        this.DBWorker.task_not_complited(temp.SourceChat, temp.TargetChannel, bot_token);
+                        this.DBWorker.task_not_complited(temp.SourceChat,temp.SourceMessageId, temp.TargetChannel, bot_token);
                     }  
                 }
             }

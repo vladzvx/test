@@ -323,6 +323,7 @@ namespace DataBaseWorker
             this._task_comlited.CommandType = System.Data.CommandType.StoredProcedure;
             this._task_comlited.CommandText = "task_complited";
             this._task_comlited.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_comlited.Parameters.Add(new NpgsqlParameter("_source_message_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_comlited.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_comlited.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
 
@@ -330,6 +331,7 @@ namespace DataBaseWorker
             this._task_not_comlited.CommandType = System.Data.CommandType.StoredProcedure;
             this._task_not_comlited.CommandText = "task_not_complited";
             this._task_not_comlited.Parameters.Add(new NpgsqlParameter("source_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
+            this._task_not_comlited.Parameters.Add(new NpgsqlParameter("_source_message_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_not_comlited.Parameters.Add(new NpgsqlParameter("target_chat_id", NpgsqlTypes.NpgsqlDbType.Bigint));
             this._task_not_comlited.Parameters.Add(new NpgsqlParameter("bot_token", NpgsqlTypes.NpgsqlDbType.Text));
 
@@ -1204,22 +1206,24 @@ namespace DataBaseWorker
             }
         }
 
-        public void task_complited(long source_chat_id, long target_chat_id, string bot_token)
+        public void task_complited(long source_chat_id,long source_message_id, long target_chat_id, string bot_token)
         {
             lock (ReadLocker)
             {
                 _task_comlited.Parameters["source_chat_id"].Value = source_chat_id;
+                _task_comlited.Parameters["_source_message_id"].Value = source_message_id;
                 _task_comlited.Parameters["target_chat_id"].Value = target_chat_id;
                 _task_comlited.Parameters["bot_token"].Value = bot_token;
                 _task_comlited.ExecuteNonQuery();
             }
         }
 
-        public void task_not_complited(long source_chat_id, long target_chat_id, string bot_token)
+        public void task_not_complited(long source_chat_id, long source_message_id, long target_chat_id, string bot_token)
         {
             lock (ReadLocker)
             {
                 _task_not_comlited.Parameters["source_chat_id"].Value = source_chat_id;
+                _task_not_comlited.Parameters["_source_message_id"].Value = source_message_id;
                 _task_not_comlited.Parameters["target_chat_id"].Value = target_chat_id;
                 _task_not_comlited.Parameters["bot_token"].Value = bot_token;
                 _task_not_comlited.ExecuteNonQuery();

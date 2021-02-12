@@ -137,7 +137,7 @@ namespace DefferedPosting
                             if (task.media_group_id == null)
                             {
                                 sender_to_tg.Put(factory.CreatePhoto(new ChatId(task.TargetChannel), task.media_id, task.caption, keyboardMarkup: keybpard));
-                                dBWorker.task_complited(task.SourceChat, task.TargetChannel, token);
+                                dBWorker.task_complited(task.SourceChat, task.SourceMessageId, task.TargetChannel, token);
                                 SetMode(task.SourceChat);
                             }
                             else
@@ -145,21 +145,21 @@ namespace DefferedPosting
                                 List<string> media = dBWorker.get_media_ids(task.media_group_id);
                                 string caption = dBWorker.get_caption(task.media_group_id);
                                 sender_to_tg.Put(factory.CreateAlbum(new ChatId(task.TargetChannel), media, caption, keyboardMarkup: keybpard));
-                                dBWorker.task_complited(task.SourceChat, task.TargetChannel, token);
+                                dBWorker.task_complited(task.SourceChat, task.SourceMessageId, task.TargetChannel, token);
                                 SetMode(task.SourceChat);
                             }
                         }
                         else
                         {
                             sender_to_tg.Put(factory.CreateMessage(task.TargetChannel, task.text, keyboardMarkup: keybpard));
-                            dBWorker.task_complited(task.SourceChat, task.TargetChannel, token);
+                            dBWorker.task_complited(task.SourceChat, task.SourceMessageId, task.TargetChannel, token);
                             SetMode(task.SourceChat);
                         }
                     }
                     else if (Mode.RePostCreation.Equals(mode))
                     {
                         sender_to_tg.Put(factory.CreateMessageForwarding(new ChatId(task.TargetChannel),new ChatId(task.SourceChat),(int)task.SourceMessageId));
-                        dBWorker.task_complited(task.SourceChat, task.TargetChannel, token);
+                        dBWorker.task_complited(task.SourceChat, task.SourceMessageId, task.TargetChannel, token);
                         SetMode(task.SourceChat);
                     }
 
